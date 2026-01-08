@@ -4,27 +4,27 @@ import { useServiceUpDateFilter } from './hooks/useServiceUpDateFilter.js';
 import { DateFilterProvider } from './contexts/ServiceUpDateFilterContext.jsx';
 import { AnalistaFilterProvider, useAnalistaFilterContext } from './contexts/ServiceUpAnalistaFilterContext.jsx';
 import { AbaControlProvider } from './contexts/AbaControlContext.jsx';
-import QuickDateFilters from './components/ServiceUp/QuickDateFilters.tsx';
-import ServiceUpAnalistaFilter from './components/ServiceUp/ServiceUpAnalistaFilter.tsx';
-import DashboardCard from './components/ServiceUp/DashboardCard.tsx';
-import PresentationMode from './components/ServiceUp/PresentationMode.tsx';
+import QuickDateFilters from './components/ServiceUp/QuickDateFilters';
+import ServiceUpAnalistaFilter from './components/ServiceUp/ServiceUpAnalistaFilter';
+import DashboardCard from './components/ServiceUp/DashboardCard';
+import PresentationMode from './components/ServiceUp/PresentationMode';
 
 // Importar todos os slides
-import SlideChamadosAtendidos from './components/ServiceUp/slides/SlideChamadosAtendidos.tsx';
-import SlideTop20Usuarios from './components/ServiceUp/slides/SlideTop20Usuarios.tsx';
-import SlideAbertoFechado from './components/ServiceUp/slides/SlideAbertoFechado.tsx';
-import SlideDominio from './components/ServiceUp/slides/SlideDominio.tsx';
-import SlideDatasul from './components/ServiceUp/slides/SlideDatasul.tsx';
-import SlideFluig from './components/ServiceUp/slides/SlideFluig.tsx';
-import SlideAnalistas from './components/ServiceUp/slides/SlideAnalistas.tsx';
-import SlideSLA from './components/ServiceUp/slides/SlideSLA.tsx';
-import SlideSLAAnalista from './components/ServiceUp/slides/SlideSLAAnalista.tsx';
-import SlideSatisfacaoTabela from './components/ServiceUp/slides/SlideSatisfacaoTabela.tsx';
-import SlideSatisfacaoGrafico from './components/ServiceUp/slides/SlideSatisfacaoGrafico.tsx';
-import SlideCausaRaizMelhoriasSetembro from './components/ServiceUp/slides/SlideCausaRaizMelhoriasSetembro.tsx';
-import SlideCausaRaizMelhorias from './components/ServiceUp/slides/SlideCausaRaizMelhorias.tsx';
-import SlideCausaRaizMelhoriasNovembro from './components/ServiceUp/slides/SlideCausaRaizMelhoriasNovembro.tsx';
-import SlideDashboardChamados from './components/ServiceUp/slides/SlideDashboardChamados.tsx';
+import SlideChamadosAtendidos from './components/ServiceUp/slides/SlideChamadosAtendidos';
+import SlideTop20Usuarios from './components/ServiceUp/slides/SlideTop20Usuarios';
+import SlideAbertoFechado from './components/ServiceUp/slides/SlideAbertoFechado';
+import SlideDominio from './components/ServiceUp/slides/SlideDominio';
+import SlideDatasul from './components/ServiceUp/slides/SlideDatasul';
+import SlideFluig from './components/ServiceUp/slides/SlideFluig';
+import SlideAnalistas from './components/ServiceUp/slides/SlideAnalistas';
+import SlideSLA from './components/ServiceUp/slides/SlideSLA';
+import SlideSLAAnalista from './components/ServiceUp/slides/SlideSLAAnalista';
+import SlideSatisfacaoTabela from './components/ServiceUp/slides/SlideSatisfacaoTabela';
+import SlideSatisfacaoGrafico from './components/ServiceUp/slides/SlideSatisfacaoGrafico';
+import SlideCausaRaizMelhoriasSetembro from './components/ServiceUp/slides/SlideCausaRaizMelhoriasSetembro';
+import SlideCausaRaizMelhorias from './components/ServiceUp/slides/SlideCausaRaizMelhorias';
+import SlideCausaRaizMelhoriasNovembro from './components/ServiceUp/slides/SlideCausaRaizMelhoriasNovembro';
+import SlideDashboardChamados from './components/ServiceUp/slides/SlideDashboardChamados';
 
 // Array de slides - cada slide tem id, title, component, description, icon, size e color
 const slides = [
