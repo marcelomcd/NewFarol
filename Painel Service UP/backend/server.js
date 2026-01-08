@@ -40,20 +40,39 @@ app.get('/api/health', (req, res) => {
 // Routes
 app.use('/api/chamados', chamadosRoutes);
 
-// Servir arquivos estáticos do frontend
+// Servir arquivos estáticos do frontend (apenas em produção)
+// Em desenvolvimento, o frontend roda separadamente no Vite (porta 5174)
 const frontendDistPath = path.join(__dirname, '..', 'frontend', 'dist');
-app.use(express.static(frontendDistPath));
+const fs = require('fs');
 
-// Rota catch-all: serve o index.html para todas as rotas que não sejam /api/*
-// Isso permite que o React Router funcione corretamente
-app.get('*', (req, res) => {
-  // Se a rota começa com /api, não servir o frontend
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'Rota não encontrada' });
-  }
-  // Caso contrário, servir o index.html do frontend
-  res.sendFile(path.join(frontendDistPath, 'index.html'));
-});
+// Verificar se o diretório dist existe (apenas em produção)
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+
+  // Rota catch-all: serve o index.html para todas as rotas que não sejam /api/*
+  // Isso permite que o React Router funcione corretamente
+  app.get('*', (req, res) => {
+    // Se a rota começa com /api, não servir o frontend
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'Rota não encontrada' });
+    }
+    // Caso contrário, servir o index.html do frontend
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+} else {
+  // Em desenvolvimento, apenas retornar erro 404 para rotas não-API
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'Rota não encontrada' });
+    }
+    // Em desenvolvimento, o frontend roda separadamente
+    res.status(404).json({ 
+      error: 'Rota não encontrada',
+      message: 'Em desenvolvimento, o frontend roda separadamente na porta 5174',
+      frontendUrl: 'http://localhost:5174'
+    });
+  });
+}
 
 // Error handling
 app.use((err, req, res, next) => {
