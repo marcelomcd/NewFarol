@@ -1,7 +1,10 @@
 import axios from 'axios'
 
+// URL do backend - usar variável de ambiente ou padrão para desenvolvimento
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL ? `${API_BASE_URL}/api` : '/api', // Se VITE_API_URL estiver definido, usar absoluto; senão, usar relativo (proxy)
   headers: {
     'Content-Type': 'application/json',
   },
