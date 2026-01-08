@@ -14,19 +14,20 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 # Importar rotas antigas temporariamente para compatibilidade
-from app.api.routes import (
-    features,
-    projects,
-    reports,
-    webhooks,
-    auth,
-    export,
-    features_analytics,
-    work_items,
-    azdo_consolidated,
-)
+# TODO: Recriar arquivos de rotas se necessário
+# from app.api.routes import (
+#     features,
+#     projects,
+#     reports,
+#     webhooks,
+#     auth,
+#     export,
+#     features_analytics,
+#     work_items,
+#     azdo_consolidated,
+# )
 # Importar novas rotas v2 (arquitetura limpa)
-from app.api.routes import clients, features_v2
+# from app.api.routes import clients, features_v2
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 from fastapi.exceptions import RequestValidationError
@@ -168,26 +169,27 @@ app.add_exception_handler(BurndownCalculationError, burndown_calculation_handler
 register_exception_handlers(app)
 
 # Incluir rotas antigas (mantendo compatibilidade)
-# TODO: Migrar todas as rotas para /api/v1/
-app.include_router(auth.router, prefix="/api", tags=["auth"])
-app.include_router(projects.router, prefix="/api", tags=["projects"])
-app.include_router(features.router, prefix="/api", tags=["📋 Features (WIQL)"])
-app.include_router(reports.router, prefix="/api", tags=["reports"])
-app.include_router(export.router, prefix="/api", tags=["export"])
+# TODO: Recriar arquivos de rotas se necessário
+# app.include_router(auth.router, prefix="/api", tags=["auth"])
+# app.include_router(projects.router, prefix="/api", tags=["projects"])
+# app.include_router(features.router, prefix="/api", tags=["📋 Features (WIQL)"])
+# app.include_router(reports.router, prefix="/api", tags=["reports"])
+# app.include_router(export.router, prefix="/api", tags=["export"])
 # chamados removido - agora é backend independente (Node.js)
-app.include_router(features_analytics.router, prefix="/api", tags=["features-analytics"])
-app.include_router(work_items.router, prefix="/api", tags=["work-items"])
-app.include_router(azdo_consolidated.router, prefix="/api", tags=["📊 Azure DevOps - Consolidado"])
-app.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
+# app.include_router(features_analytics.router, prefix="/api", tags=["features-analytics"])
+# app.include_router(work_items.router, prefix="/api", tags=["work-items"])
+# app.include_router(azdo_consolidated.router, prefix="/api", tags=["📊 Azure DevOps - Consolidado"])
+# app.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 
 # Novas rotas v2 (arquitetura limpa)
-app.include_router(clients.router, prefix="/api/v2", tags=["clients-v2"])
-app.include_router(features_v2.router, prefix="/api/v2", tags=["features-v2"])
+# app.include_router(clients.router, prefix="/api/v2", tags=["clients-v2"])
+# app.include_router(features_v2.router, prefix="/api/v2", tags=["features-v2"])
 
 # Rotas de debug (apenas em desenvolvimento)
-if settings.debug:
-    from app.api.routes import debug
-    app.include_router(debug.router, prefix="/api/debug", tags=["debug"])
+# TODO: Recriar arquivo de debug se necessário
+# if settings.debug:
+#     from app.api.routes import debug
+#     app.include_router(debug.router, prefix="/api/debug", tags=["debug"])
 
 # Quando todas as rotas estiverem migradas para v1, descomentar:
 # from app.api.v1 import api_router
