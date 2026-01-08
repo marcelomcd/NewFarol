@@ -10,8 +10,8 @@ import {
   Legend
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
-import { chamadosApi } from '../../services/api';
-import { useDateFilterContext } from '../../contexts/ServiceUpDateFilterContext.jsx';
+import { chamadosApi } from '../../../services/api';
+import { useDateFilterContext } from '../../../contexts/ServiceUpDateFilterContext';
 
 ChartJS.register(
   CategoryScale,

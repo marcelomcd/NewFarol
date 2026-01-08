@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { chamadosApi } from '../../services/api';
-import { useAnalistaFilterContext } from '../../contexts/ServiceUpAnalistaFilterContext';
+import { chamadosApi } from '../../../services/api';
+import { useAnalistaFilterContext } from '../../../contexts/ServiceUpAnalistaFilterContext';
 
 const SlideDashboardChamados = () => {
   const [filtroStatus, setFiltroStatus] = useState<string | null>(null);

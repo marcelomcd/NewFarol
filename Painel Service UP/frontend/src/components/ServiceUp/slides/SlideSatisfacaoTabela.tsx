@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { chamadosApi } from '../../services/api';
-import { useDateFilterContext } from '../../contexts/ServiceUpDateFilterContext';
+import { chamadosApi } from '../../../services/api';
+import { useDateFilterContext } from '../../../contexts/ServiceUpDateFilterContext';
 
 const SlideSatisfacaoTabela = () => {
   const { month, year, startDate, endDate, analistaFilter, analistasSelecionados } = useDateFilterContext();
