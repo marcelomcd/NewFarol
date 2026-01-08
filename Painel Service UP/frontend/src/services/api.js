@@ -25,61 +25,182 @@ api.interceptors.response.use(
   }
 );
 
-export const chamadosService = {
-  getAtendidos: (month, year, startDate, endDate, analistaFilter, analistas) =>
-    api.get('/chamados/atendidos', { params: { month, year, startDate, endDate, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+export const chamadosApi = {
+  getAtendidos: async (month, year, startDate, endDate, analistaFilter, analistas) => {
+    const params = {};
+    if (month !== null && month !== undefined) params.month = month;
+    if (year !== null && year !== undefined) params.year = year;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/atendidos', { params });
+  },
 
-  getAbertoFechado: (month, year, startDate, endDate, analistaFilter, analistas) =>
-    api.get('/chamados/aberto-fechado', { params: { month, year, startDate, endDate, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getAbertoFechado: async (month, year, startDate, endDate, analistaFilter, analistas) => {
+    const params = {};
+    if (month !== null && month !== undefined) params.month = month;
+    if (year !== null && year !== undefined) params.year = year;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/aberto-fechado', { params });
+  },
 
-  getDominio: (month, year, startDate, endDate, analistaFilter, analistas) =>
-    api.get('/chamados/dominio', { params: { month, year, startDate, endDate, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getDominio: async (month, year, startDate, endDate, analistaFilter, analistas) => {
+    const params = {};
+    if (month !== null && month !== undefined) params.month = month;
+    if (year !== null && year !== undefined) params.year = year;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/dominio', { params });
+  },
 
-  getDatasul: (month, year, startDate, endDate, analistaFilter, analistas) =>
-    api.get('/chamados/datasul', { params: { month, year, startDate, endDate, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getDatasul: async (month, year, startDate, endDate, analistaFilter, analistas) => {
+    const params = {};
+    if (month !== null && month !== undefined) params.month = month;
+    if (year !== null && year !== undefined) params.year = year;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/datasul', { params });
+  },
 
-  getFluig: (month, year, startDate, endDate, analistaFilter, analistas) =>
-    api.get('/chamados/fluig', { params: { month, year, startDate, endDate, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getFluig: async (month, year, startDate, endDate, analistaFilter, analistas) => {
+    const params = {};
+    if (month !== null && month !== undefined) params.month = month;
+    if (year !== null && year !== undefined) params.year = year;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/fluig', { params });
+  },
 
-  getAnalistas: (month, year, startDate, endDate, analistaFilter, analistas) =>
-    api.get('/chamados/analistas', { params: { month, year, startDate, endDate, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getAnalistas: async (month, year, startDate, endDate, analistaFilter, analistas) => {
+    const params = {};
+    if (month !== null && month !== undefined) params.month = month;
+    if (year !== null && year !== undefined) params.year = year;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/analistas', { params });
+  },
 
-  getSLA: (month, year, startDate, endDate, analistaFilter, analistas) =>
-    api.get('/chamados/sla', { params: { month, year, startDate, endDate, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getSLA: async (month, year, startDate, endDate, analistaFilter, analistas) => {
+    const params = {};
+    if (month !== null && month !== undefined) params.month = month;
+    if (year !== null && year !== undefined) params.year = year;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/sla', { params });
+  },
 
-  getSLAAnalista: (month, year, startDate, endDate, analistaFilter, analistas) =>
-    api.get('/chamados/sla-analista', { params: { month, year, startDate, endDate, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getSLAAnalista: async (month, year, startDate, endDate, analistaFilter, analistas) => {
+    const params = {};
+    if (month !== null && month !== undefined) params.month = month;
+    if (year !== null && year !== undefined) params.year = year;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/sla-analista', { params });
+  },
 
-  getSatisfacao: (month, year, startDate, endDate, analistaFilter, analistas) =>
-    api.get('/chamados/satisfacao', { params: { month, year, startDate, endDate, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getSatisfacao: async (month, year, startDate, endDate, analistaFilter, analistas) => {
+    const params = {};
+    if (month !== null && month !== undefined) params.month = month;
+    if (year !== null && year !== undefined) params.year = year;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/satisfacao', { params });
+  },
 
-  getSatisfacaoClassificacao: (month, year, startDate, endDate, analistaFilter, analistas) =>
-    api.get('/chamados/satisfacao-classificacao', { params: { month, year, startDate, endDate, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getSatisfacaoClassificacao: async (month, year, startDate, endDate, analistaFilter, analistas) => {
+    const params = {};
+    if (month !== null && month !== undefined) params.month = month;
+    if (year !== null && year !== undefined) params.year = year;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/satisfacao-classificacao', { params });
+  },
 
-  getTop20Usuarios: (month, year, startDate, endDate) =>
-    api.get('/chamados/top-20-usuarios', { params: { month, year, startDate, endDate } }),
+  getTop20Usuarios: async (month, year, startDate, endDate) => {
+    const params = {};
+    if (month !== null && month !== undefined) params.month = month;
+    if (year !== null && year !== undefined) params.year = year;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    return api.get('/chamados/top-20-usuarios', { params });
+  },
 
-  getListaAnalistas: () =>
-    api.get('/chamados/lista-analistas'),
+  getListaAnalistas: async () => {
+    return api.get('/chamados/lista-analistas');
+  },
 
   // Dashboard de Chamados
-  getDashboardStatus: (ticket, analistaFilter, analistas) =>
-    api.get('/chamados/dashboard/status', { params: { ticket, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getDashboardStatus: async (ticket, analistaFilter, analistas) => {
+    const params = {};
+    if (ticket) params.ticket = ticket;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/dashboard/status', { params });
+  },
 
-  getDashboardTempoAberto: (ticket, analistaFilter, analistas) =>
-    api.get('/chamados/dashboard/tempo-aberto', { params: { ticket, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getDashboardTempoAberto: async (ticket, analistaFilter, analistas) => {
+    const params = {};
+    if (ticket) params.ticket = ticket;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/dashboard/tempo-aberto', { params });
+  },
 
-  getDashboardUltimaAtualizacao: (ticket, analistaFilter, analistas) =>
-    api.get('/chamados/dashboard/ultima-atualizacao', { params: { ticket, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getDashboardUltimaAtualizacao: async (ticket, analistaFilter, analistas) => {
+    const params = {};
+    if (ticket) params.ticket = ticket;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/dashboard/ultima-atualizacao', { params });
+  },
 
-  getDashboardDetalhes: (status, tempoAberto, ultimaAtualizacao, responsavel, ticket, analistaFilter, analistas) =>
-    api.get('/chamados/dashboard/detalhes', { params: { status, tempoAberto, ultimaAtualizacao, responsavel, ticket, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getDashboardDetalhes: async (status, tempoAberto, ultimaAtualizacao, responsavel, ticket, analistaFilter, analistas) => {
+    const params = {};
+    if (status) params.status = status;
+    if (tempoAberto) params.tempoAberto = tempoAberto;
+    if (ultimaAtualizacao) params.ultimaAtualizacao = ultimaAtualizacao;
+    if (responsavel) params.responsavel = responsavel;
+    if (ticket) params.ticket = ticket;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/dashboard/detalhes', { params });
+  },
 
-  getDashboardCausaRaiz: (ticket, analistaFilter, analistas) =>
-    api.get('/chamados/dashboard/causa-raiz', { params: { ticket, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getDashboardCausaRaiz: async (ticket, analistaFilter, analistas) => {
+    const params = {};
+    if (ticket) params.ticket = ticket;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/dashboard/causa-raiz', { params });
+  },
 
-  getDashboardEmAndamento: (ticket, analistaFilter, analistas) =>
-    api.get('/chamados/dashboard/em-andamento', { params: { ticket, analistaFilter, analistas: analistas ? JSON.stringify(analistas) : null } }),
+  getDashboardEmAndamento: async (ticket, analistaFilter, analistas) => {
+    const params = {};
+    if (ticket) params.ticket = ticket;
+    if (analistaFilter) params.analistaFilter = analistaFilter;
+    if (analistas) params.analistas = JSON.stringify(analistas);
+    return api.get('/chamados/dashboard/em-andamento', { params });
+  },
 };
 
 export default api;
