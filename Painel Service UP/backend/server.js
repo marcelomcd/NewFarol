@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import { createConnection } from './db/connection.js';
 import chamadosRoutes from './routes/chamados.js';
 
@@ -43,7 +44,6 @@ app.use('/api/chamados', chamadosRoutes);
 // Servir arquivos estáticos do frontend (apenas em produção)
 // Em desenvolvimento, o frontend roda separadamente no Vite (porta 5174)
 const frontendDistPath = path.join(__dirname, '..', 'frontend', 'dist');
-const fs = require('fs');
 
 // Verificar se o diretório dist existe (apenas em produção)
 if (fs.existsSync(frontendDistPath)) {
