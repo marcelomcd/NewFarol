@@ -110,6 +110,38 @@ O **New Farol** é um sistema desenvolvido em Python/FastAPI que exibe projetos 
 4. **Deploy Independente**: Cada sistema pode ser deployado separadamente
 5. **Manutenção Isolada**: Alterações em um sistema não afetam o outro
 
+### ⚠️ GARANTIA DE INDEPENDÊNCIA
+
+**IMPORTANTE**: Qualquer alteração de arquivos dentro da pasta `Painel Service UP/` **NÃO requer nenhuma alteração** nos arquivos do New Farol.
+
+#### Como isso é garantido?
+
+1. **Integração via Iframe**: O New Farol exibe o Service UP através de um simples `<iframe>` HTML
+2. **Sem Imports Compartilhados**: O New Farol não importa nenhum componente ou código do Service UP
+3. **URL Configurável**: A URL do Service UP é configurável via variável de ambiente (`VITE_SERVICEUP_FRONTEND_URL`)
+4. **Sem Dependências de Código**: Não há dependências de código entre os sistemas
+
+#### Exemplo Prático
+
+```tsx
+// frontend/src/pages/ServiceUp.tsx
+// Este é o ÚNICO arquivo do New Farol que referencia o Service UP
+// E ele usa apenas um iframe - sem imports, sem componentes compartilhados
+
+const ServiceUp = () => {
+  const serviceUpUrl = import.meta.env.VITE_SERVICEUP_FRONTEND_URL || 'http://localhost:5174';
+  
+  return (
+    <iframe src={serviceUpUrl} title="Painel Service Up" />
+  );
+};
+```
+
+**Resultado**: 
+- ✅ Davi pode alterar qualquer arquivo em `Painel Service UP/` sem afetar o New Farol
+- ✅ Marcelo pode alterar qualquer arquivo em `backend/` ou `frontend/` sem afetar o Service UP
+- ✅ Cada sistema funciona completamente sozinho
+
 ### O que acontece se um sistema falhar?
 
 - ✅ **New Farol funciona sem Service UP**: Apenas a página `/serviceup` não funcionará
@@ -123,18 +155,28 @@ A integração é feita através de um `<iframe>` HTML simples:
 
 ```tsx
 // frontend/src/pages/ServiceUp.tsx
-<iframe
-  src="http://localhost:5174"
-  title="Painel Service Up"
-  className="w-full h-full border-0"
-/>
+// ÚNICO ponto de integração - apenas um iframe, sem imports ou dependências
+
+const ServiceUp = () => {
+  const serviceUpUrl = import.meta.env.VITE_SERVICEUP_FRONTEND_URL || 'http://localhost:5174';
+  
+  return (
+    <iframe
+      src={serviceUpUrl}
+      title="Painel Service Up"
+      className="w-full h-full border-0"
+    />
+  );
+};
 ```
 
 **Vantagens desta abordagem**:
-- ✅ Isolamento total de JavaScript e CSS
-- ✅ Sem conflitos de dependências
-- ✅ Cada sistema pode ser atualizado independentemente
-- ✅ Fácil depuração (cada sistema tem seu próprio console do navegador)
+- ✅ **Isolamento total**: JavaScript e CSS completamente separados
+- ✅ **Sem conflitos**: Nenhuma dependência compartilhada
+- ✅ **Atualização independente**: Cada sistema pode ser atualizado sem afetar o outro
+- ✅ **Fácil depuração**: Cada sistema tem seu próprio console do navegador
+- ✅ **Zero dependências de código**: O New Farol não importa nada do Service UP
+- ✅ **Garantia de independência**: Alterações no Service UP nunca quebram o New Farol
 
 ---
 
