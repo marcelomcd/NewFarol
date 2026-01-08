@@ -1,349 +1,124 @@
-import { useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useServiceUpDateFilter } from '../hooks/useServiceUpDateFilter';
-import { DateFilterProvider } from '../contexts/ServiceUpDateFilterContext';
-import { AnalistaFilterProvider, useAnalistaFilterContext } from '../contexts/ServiceUpAnalistaFilterContext';
-import { AbaControlProvider } from '../contexts/AbaControlContext';
-import QuickDateFilters from '../components/ServiceUp/QuickDateFilters';
-import ServiceUpAnalistaFilter from '../components/ServiceUp/ServiceUpAnalistaFilter';
-import DashboardCard from '../components/ServiceUp/DashboardCard';
-import PresentationMode from '../components/ServiceUp/PresentationMode';
+import React, { useState } from 'react';
 
-// Importar todos os slides
-import SlideChamadosAtendidos from '../components/ServiceUp/slides/SlideChamadosAtendidos';
-import SlideTop20Usuarios from '../components/ServiceUp/slides/SlideTop20Usuarios';
-import SlideAbertoFechado from '../components/ServiceUp/slides/SlideAbertoFechado';
-import SlideDominio from '../components/ServiceUp/slides/SlideDominio';
-import SlideDatasul from '../components/ServiceUp/slides/SlideDatasul';
-import SlideFluig from '../components/ServiceUp/slides/SlideFluig';
-import SlideAnalistas from '../components/ServiceUp/slides/SlideAnalistas';
-import SlideSLA from '../components/ServiceUp/slides/SlideSLA';
-import SlideSLAAnalista from '../components/ServiceUp/slides/SlideSLAAnalista';
-import SlideSatisfacaoTabela from '../components/ServiceUp/slides/SlideSatisfacaoTabela';
-import SlideSatisfacaoGrafico from '../components/ServiceUp/slides/SlideSatisfacaoGrafico';
-import SlideCausaRaizMelhoriasSetembro from '../components/ServiceUp/slides/SlideCausaRaizMelhoriasSetembro';
-import SlideCausaRaizMelhorias from '../components/ServiceUp/slides/SlideCausaRaizMelhorias';
-import SlideCausaRaizMelhoriasNovembro from '../components/ServiceUp/slides/SlideCausaRaizMelhoriasNovembro';
-import SlideDashboardChamados from '../components/ServiceUp/slides/SlideDashboardChamados';
+/**
+ * Página ServiceUp - Exibe o Painel Service UP via iframe
+ * 
+ * IMPORTANTE: Esta página usa apenas um iframe para exibir o frontend
+ * independente do Service UP. Nenhum componente ou código do Service UP
+ * está sendo usado diretamente aqui, garantindo total independência.
+ * 
+ * Qualquer alteração no "Painel Service UP" não requer alterações neste arquivo,
+ * desde que a URL do frontend Service UP permaneça acessível.
+ */
+const ServiceUp = () => {
+  // URL do frontend Service UP (pode ser configurada via variável de ambiente)
+  const serviceUpUrl = import.meta.env.VITE_SERVICEUP_FRONTEND_URL || 'http://localhost:5174';
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000,
-      gcTime: 10 * 60 * 1000, // React Query v5 usa gcTime em vez de cacheTime
-      refetchOnWindowFocus: false,
-      retry: 1,
-      refetchOnReconnect: true,
-    },
-  },
-});
-
-interface Slide {
-  id: number;
-  title: string;
-  component: React.ReactNode;
-  description: string;
-  icon: string;
-  size: 'small' | 'medium' | 'large';
-  color: 'purple' | 'blue' | 'green' | 'orange' | 'teal' | 'indigo' | 'red' | 'pink' | 'yellow' | 'cyan';
-}
-
-const slides: Slide[] = [
-  {
-    id: 1,
-    title: 'Chamados Atendidos',
-    component: <SlideChamadosAtendidos />,
-    description: 'Evolução mensal',
-    icon: 'chart-line',
-    size: 'large',
-    color: 'purple'
-  },
-  {
-    id: 2,
-    title: 'Top 20 Usuários',
-    component: <SlideTop20Usuarios />,
-    description: 'Usuários que mais abriram chamados',
-    icon: 'users',
-    size: 'large',
-    color: 'green'
-  },
-  {
-    id: 3,
-    title: 'Aberto vs Fechado',
-    component: <SlideAbertoFechado />,
-    description: 'Status dos chamados',
-    icon: 'balance-scale',
-    size: 'small',
-    color: 'blue'
-  },
-  {
-    id: 4,
-    title: 'Por Domínio',
-    component: <SlideDominio />,
-    description: 'Distribuição por área',
-    icon: 'sitemap',
-    size: 'small',
-    color: 'green'
-  },
-  {
-    id: 5,
-    title: 'Datasul',
-    component: <SlideDatasul />,
-    description: 'Análise Datasul',
-    icon: 'database',
-    size: 'large',
-    color: 'orange'
-  },
-  {
-    id: 6,
-    title: 'Fluig',
-    component: <SlideFluig />,
-    description: 'Análise Fluig',
-    icon: 'cloud',
-    size: 'small',
-    color: 'teal'
-  },
-  {
-    id: 7,
-    title: 'Analistas',
-    component: <SlideAnalistas />,
-    description: 'Performance individual',
-    icon: 'users',
-    size: 'large',
-    color: 'indigo'
-  },
-  {
-    id: 8,
-    title: 'SLA Mensal',
-    component: <SlideSLA />,
-    description: 'Indicadores SLA',
-    icon: 'clock',
-    size: 'large',
-    color: 'red'
-  },
-  {
-    id: 9,
-    title: 'SLA Analista',
-    component: <SlideSLAAnalista />,
-    description: 'SLA por analista',
-    icon: 'user-clock',
-    size: 'large',
-    color: 'pink'
-  },
-  {
-    id: 10,
-    title: 'Satisfação',
-    component: <SlideSatisfacaoTabela />,
-    description: 'Classificação',
-    icon: 'star',
-    size: 'medium',
-    color: 'yellow'
-  },
-  {
-    id: 11,
-    title: 'Satisfação Detalhada',
-    component: <SlideSatisfacaoGrafico />,
-    description: 'Por analista',
-    icon: 'chart-bar',
-    size: 'medium',
-    color: 'cyan'
-  },
-  {
-    id: 12,
-    title: 'Soluções de Causa Raiz e Melhorias – Resolvido – Setembro/2025',
-    component: <SlideCausaRaizMelhoriasSetembro />,
-    description: 'Soluções resolvidas',
-    icon: 'wrench',
-    size: 'large',
-    color: 'blue'
-  },
-  {
-    id: 13,
-    title: 'Soluções de Causa Raiz e Melhorias – Resolvido – Outubro/2025',
-    component: <SlideCausaRaizMelhorias />,
-    description: 'Soluções resolvidas',
-    icon: 'wrench',
-    size: 'large',
-    color: 'blue'
-  },
-  {
-    id: 14,
-    title: 'Soluções de Causa Raiz e Melhorias – Resolvido – Novembro/2025',
-    component: <SlideCausaRaizMelhoriasNovembro />,
-    description: 'Soluções resolvidas',
-    icon: 'wrench',
-    size: 'large',
-    color: 'blue'
-  },
-  {
-    id: 15,
-    title: 'Dashboard de Chamados',
-    component: <SlideDashboardChamados />,
-    description: 'Visão geral dos chamados',
-    icon: 'dashboard',
-    size: 'large',
-    color: 'indigo'
-  },
-];
-
-const ServiceUpContent = () => {
-  const {
-    selectedMonth,
-    selectedYear,
-    setSelectedMonth,
-    setSelectedYear,
-    dateFilter,
-    months,
-    years,
-  } = useServiceUpDateFilter();
-
-  const { analistaFilter, analistasSelecionados, setAnalistaFilter, setAnalistasSelecionados } = useAnalistaFilterContext();
-
-  const [presentationMode, setPresentationMode] = useState(false);
-  const [presentationIndex, setPresentationIndex] = useState(0);
-
-  const handleClearFilters = () => {
-    const now = new Date();
-    setSelectedMonth(now.getMonth() + 1);
-    setSelectedYear(now.getFullYear());
-  };
-
-  const handleClearAllFilters = () => {
-    const now = new Date();
-    setSelectedMonth(now.getMonth() + 1);
-    setSelectedYear(now.getFullYear());
-    setAnalistaFilter('todos');
-    setAnalistasSelecionados([]);
-  };
-
-  const openPresentation = () => {
-    setPresentationMode(true);
-    setPresentationIndex(0);
-  };
-
-  const closePresentation = async () => {
+  const handleIframeLoad = () => {
+    setIsLoading(false);
+    setError(false);
+    // Tentar acessar o conteúdo do iframe pode falhar devido a CORS,
+    // mas isso é esperado e não é um problema
     try {
-      if (document.exitFullscreen) {
-        await document.exitFullscreen();
-      } else if ((document as any).webkitExitFullscreen) {
-        await (document as any).webkitExitFullscreen();
-      } else if ((document as any).msExitFullscreen) {
-        await (document as any).msExitFullscreen();
-      }
-    } catch (err) {
-      console.log('Erro ao sair do fullscreen:', err);
+      // Verificação silenciosa - não fazemos nada com o resultado
+      // pois o iframe pode estar em outra origem
+    } catch (e) {
+      // CORS é esperado quando o iframe está em outra origem
+      // Não é um erro, apenas uma limitação de segurança do navegador
     }
-    setPresentationMode(false);
   };
 
-  const nextSlide = () => {
-    setPresentationIndex((prev) => (prev < slides.length - 1 ? prev + 1 : 0));
+  const handleIframeError = () => {
+    setError(true);
+    setIsLoading(false);
+    setErrorMessage('Erro ao carregar o Painel Service UP. Verifique se o frontend está rodando.');
   };
 
-  const previousSlide = () => {
-    setPresentationIndex((prev) => (prev > 0 ? prev - 1 : slides.length - 1));
-  };
+  // Timeout para detectar se o iframe não carregou
+  React.useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        // Se ainda estiver carregando após 10 segundos, pode ser um problema
+        // Mas não definimos como erro, pois pode estar apenas lento
+        console.warn('Service UP iframe ainda carregando após 10 segundos');
+      }
+    }, 10000);
 
-  const getGridCols = (size: string) => {
-    return 'col-span-1';
-  };
+    return () => clearTimeout(timeout);
+  }, [isLoading]);
 
   return (
-    <DateFilterProvider
-      month={dateFilter.month}
-      year={dateFilter.year}
-      startDate={dateFilter.startDate}
-      endDate={dateFilter.endDate}
-      analistaFilter={analistaFilter}
-      analistasSelecionados={analistasSelecionados}
-    >
-      <AbaControlProvider>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          {/* Filtros no topo */}
-          <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-            <div className="max-w-[1600px] mx-auto">
-              <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Painel Service Up</h1>
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Filtro de Analista */}
-                <ServiceUpAnalistaFilter />
-                
-                {/* Filtros Rápidos */}
-                <QuickDateFilters
-                  selectedMonth={selectedMonth}
-                  selectedYear={selectedYear}
-                  months={months}
-                  years={years}
-                  onMonthChange={setSelectedMonth}
-                  onYearChange={setSelectedYear}
-                  onClear={handleClearAllFilters}
-                />
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Painel Service Up</h1>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+          Este painel é um sistema independente, exibido aqui via iframe.
+          Qualquer alteração no Service UP não requer alterações no New Farol.
+        </p>
+      </div>
 
-                {/* Botão de Apresentação */}
-                <button
-                  onClick={openPresentation}
-                  className="w-10 h-10 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-full hover:from-teal-700 hover:to-cyan-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center"
-                  title="Modo Apresentação"
-                >
-                  <i className="fas fa-tv text-sm"></i>
-                </button>
+      {/* Conteúdo principal - Iframe */}
+      <div className="flex-grow relative p-4">
+        {/* Loading state */}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-900 bg-opacity-75 z-10">
+            <div className="text-center text-gray-600 dark:text-gray-400">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-3"></div>
+              <p className="font-medium">Carregando Painel Service Up...</p>
+              <p className="text-sm mt-1">Aguarde enquanto o sistema independente é carregado</p>
+            </div>
+          </div>
+        )}
+
+        {/* Error state */}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-900 z-10">
+            <div className="text-center text-red-500 dark:text-red-400 max-w-md mx-auto p-6">
+              <div className="text-5xl mb-4">⚠️</div>
+              <p className="font-bold text-lg mb-2">Erro ao carregar o Painel Service Up</p>
+              <p className="text-sm mb-4">{errorMessage}</p>
+              <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <p><strong>Verifique:</strong></p>
+                <ul className="list-disc list-inside space-y-1 text-left">
+                  <li>O frontend do Service UP está rodando em <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{serviceUpUrl}</code></li>
+                  <li>O backend do Service UP está rodando na porta 3000</li>
+                  <li>Execute <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">start.bat</code> para iniciar todos os serviços</li>
+                </ul>
+                <p className="mt-4">
+                  <a 
+                    href={serviceUpUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-blue-500 hover:underline font-medium"
+                  >
+                    Ou acesse o Service UP diretamente aqui
+                  </a>
+                </p>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Main Content */}
-          <main className="overflow-auto bg-gray-50 dark:bg-gray-900">
-            {/* Dashboard Grid */}
-            <div className="p-8">
-              <div className="grid grid-cols-1 gap-12 max-w-[1600px] mx-auto">
-                {slides.map((slide, index) => (
-                  <motion.div
-                    key={slide.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className={getGridCols(slide.size)}
-                  >
-                    <DashboardCard
-                      title={slide.title}
-                      description={slide.description}
-                      icon={slide.icon}
-                      color={slide.color}
-                      size={slide.size}
-                    >
-                      {slide.component}
-                    </DashboardCard>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </main>
-
-          {/* Presentation Mode */}
-          <AnimatePresence>
-            {presentationMode && (
-              <PresentationMode
-                slides={slides}
-                currentIndex={presentationIndex}
-                onClose={closePresentation}
-                onNext={nextSlide}
-                onPrevious={previousSlide}
-              />
-            )}
-          </AnimatePresence>
-        </div>
-      </AbaControlProvider>
-    </DateFilterProvider>
-  );
-};
-
-const ServiceUp = () => {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AnalistaFilterProvider>
-        <ServiceUpContent />
-      </AnalistaFilterProvider>
-    </QueryClientProvider>
+        {/* Iframe - O único ponto de integração */}
+        <iframe
+          src={serviceUpUrl}
+          title="Painel Service Up"
+          className={`w-full h-full border-0 rounded-lg shadow-lg transition-opacity duration-300 ${
+            isLoading || error ? 'opacity-0' : 'opacity-100'
+          }`}
+          onLoad={handleIframeLoad}
+          onError={handleIframeError}
+          allow="fullscreen"
+          // IMPORTANTE: Não usar sandbox para permitir requisições HTTP completas
+          // O iframe precisa fazer requisições para localhost:3000 (backend Service UP)
+        />
+      </div>
+    </div>
   );
 };
 
