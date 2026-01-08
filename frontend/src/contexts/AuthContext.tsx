@@ -107,7 +107,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedToken) {
       setToken(storedToken)
       // Validar token com backend
-      validateToken(storedToken)
+      validateToken(storedToken).catch((error) => {
+        // Se a validação falhar (backend offline, token inválido, etc), 
+        // garantir que isLoading seja false para permitir redirecionamento
+        console.error('[Auth] Erro ao validar token no useEffect:', error)
+        setIsLoading(false)
+        // Limpar token inválido
+        localStorage.removeItem('auth_token')
+        setToken(null)
+        setUser(null)
+      })
     } else {
       setIsLoading(false)
     }

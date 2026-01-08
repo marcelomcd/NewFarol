@@ -114,6 +114,7 @@ const ServiceUp = () => {
           onLoad={handleIframeLoad}
           onError={handleIframeError}
           allow="fullscreen"
+          style={{ minHeight: '600px' }}
           // IMPORTANTE: Não usar sandbox para permitir requisições HTTP completas
           // O iframe precisa fazer requisições para localhost:3000 (backend Service UP)
         />
