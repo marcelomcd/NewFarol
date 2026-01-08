@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { chamadosApi } from '../../services/api.js';
+import { chamadosApi } from '../../services/api';
 import { useDateFilterContext } from '../../contexts/ServiceUpDateFilterContext';
 
 const SlideSatisfacaoTabela = () => {

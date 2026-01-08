@@ -10,7 +10,7 @@ import {
   Legend
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
-import { chamadosApi } from '../../services/api.js';
+import { chamadosApi } from '../../services/api';
 import { useDateFilterContext } from '../../contexts/ServiceUpDateFilterContext.jsx';
 
 ChartJS.register(
