@@ -1,5 +1,6 @@
 import React from 'react'
 import { FarolStatus } from './FarolCircle'
+import FarolTooltip from './FarolTooltip'
 
 interface TrafficLightProps {
   summary: {
@@ -63,50 +64,58 @@ export default function TrafficLight({ summary, onStatusClick }: TrafficLightPro
               if (isIndefinido) return null
               
               return (
-                <div
+                <FarolTooltip
                   key={status}
-                  onClick={() => {
-                    if (isActive && onStatusClick) {
-                      onStatusClick(status)
-                    }
-                  }}
-                  className={`
-                    farol-lamp relative w-18 h-18 rounded-full border-2
-                    ${isActive ? 'cursor-pointer' : 'cursor-default'}
-                  `}
-                  style={{
-                    width: '72px',
-                    height: '72px',
-                    // CSS var para o glow animado (ver index.css)
-                    ['--lamp-color' as any]: STATUS_COLORS[status],
-                    borderColor: STATUS_COLORS[status],
-                  }}
+                  status={STATUS_LABELS[status]}
+                  count={data?.count || 0}
+                  percentage={data?.percentage}
+                  color={STATUS_COLORS[status]}
+                  position="top"
                 >
-                {/* Brilho interno do círculo (efeito de vidro) */}
-                <div
-                  className="absolute inset-2 rounded-full opacity-40 pointer-events-none"
-                  style={{
-                    background: `radial-gradient(circle at 35% 35%, rgba(255,255,255,0.55), transparent 70%)`,
-                  }}
-                />
-                
-                {/* Contador dentro do círculo */}
-                {isActive && (
-                  <div className="absolute inset-0 flex items-center justify-center z-10">
-                    <span className="text-white font-bold text-base drop-shadow-xl">
-                      {data.count}
-                    </span>
+                  <div
+                    onClick={() => {
+                      if (isActive && onStatusClick) {
+                        onStatusClick(status)
+                      }
+                    }}
+                    className={`
+                      farol-lamp relative w-18 h-18 rounded-full border-2
+                      ${isActive ? 'cursor-pointer' : 'cursor-default'}
+                    `}
+                    style={{
+                      width: '72px',
+                      height: '72px',
+                      // CSS var para o glow animado (ver index.css)
+                      ['--lamp-color' as any]: STATUS_COLORS[status],
+                      borderColor: STATUS_COLORS[status],
+                    }}
+                  >
+                  {/* Brilho interno do círculo (efeito de vidro) */}
+                  <div
+                    className="absolute inset-2 rounded-full opacity-40 pointer-events-none"
+                    style={{
+                      background: `radial-gradient(circle at 35% 35%, rgba(255,255,255,0.55), transparent 70%)`,
+                    }}
+                  />
+                  
+                  {/* Contador dentro do círculo */}
+                  {isActive && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                      <span className="text-white font-bold text-base drop-shadow-xl">
+                        {data.count}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Sombra interna para profundidade */}
+                  <div
+                    className="absolute inset-0 rounded-full pointer-events-none"
+                    style={{
+                      boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)',
+                    }}
+                  />
                   </div>
-                )}
-                
-                {/* Sombra interna para profundidade */}
-                <div
-                  className="absolute inset-0 rounded-full pointer-events-none"
-                  style={{
-                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)',
-                  }}
-                />
-                </div>
+                </FarolTooltip>
               )
             })}
           </div>

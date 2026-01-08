@@ -1,13 +1,7 @@
 import axios from 'axios'
 
-// URL do backend - usar variável de ambiente ou proxy do Vite
-// Se VITE_API_URL estiver definido, usar URL absoluta; senão, usar '/api' (proxyado pelo Vite para http://localhost:8000)
-const API_BASE_URL = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL}/api` 
-  : '/api'
-
 export const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -45,6 +39,15 @@ api.interceptors.response.use(
     if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
       console.warn('Backend não disponível:', error.message)
     }
+    
+    // Não redirecionar para login em caso de rate limit (429)
+    // Rate limit não é um erro de autenticação
+    if (error.response?.status === 429) {
+      console.warn('Rate limit atingido:', error.message)
+      // Não fazer nada especial, apenas rejeitar a promise
+      // O componente que chamou pode tratar o erro adequadamente
+    }
+    
     return Promise.reject(error)
   }
 )
@@ -444,201 +447,10 @@ export const workItemsApi = {
   },
 }
 
-export const chamadosApi = {
-  getAtendidos: async (month?: number | null, year?: number | null, startDate?: string | null, endDate?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (month !== null && month !== undefined) params.month = month
-    if (year !== null && year !== undefined) params.year = year
-    if (startDate) params.startDate = startDate
-    if (endDate) params.endDate = endDate
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/atendidos', { params })
-    return response
-  },
-
-  getAbertoFechado: async (month?: number | null, year?: number | null, startDate?: string | null, endDate?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (month !== null && month !== undefined) params.month = month
-    if (year !== null && year !== undefined) params.year = year
-    if (startDate) params.startDate = startDate
-    if (endDate) params.endDate = endDate
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/aberto-fechado', { params })
-    return response
-  },
-
-  getDominio: async (month?: number | null, year?: number | null, startDate?: string | null, endDate?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (month !== null && month !== undefined) params.month = month
-    if (year !== null && year !== undefined) params.year = year
-    if (startDate) params.startDate = startDate
-    if (endDate) params.endDate = endDate
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/dominio', { params })
-    return response
-  },
-
-  getDatasul: async (month?: number | null, year?: number | null, startDate?: string | null, endDate?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (month !== null && month !== undefined) params.month = month
-    if (year !== null && year !== undefined) params.year = year
-    if (startDate) params.startDate = startDate
-    if (endDate) params.endDate = endDate
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/datasul', { params })
-    return response
-  },
-
-  getFluig: async (month?: number | null, year?: number | null, startDate?: string | null, endDate?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (month !== null && month !== undefined) params.month = month
-    if (year !== null && year !== undefined) params.year = year
-    if (startDate) params.startDate = startDate
-    if (endDate) params.endDate = endDate
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/fluig', { params })
-    return response
-  },
-
-  getAnalistas: async (month?: number | null, year?: number | null, startDate?: string | null, endDate?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (month !== null && month !== undefined) params.month = month
-    if (year !== null && year !== undefined) params.year = year
-    if (startDate) params.startDate = startDate
-    if (endDate) params.endDate = endDate
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/analistas', { params })
-    return response
-  },
-
-  getSLA: async (month?: number | null, year?: number | null, startDate?: string | null, endDate?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (month !== null && month !== undefined) params.month = month
-    if (year !== null && year !== undefined) params.year = year
-    if (startDate) params.startDate = startDate
-    if (endDate) params.endDate = endDate
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/sla', { params })
-    return response
-  },
-
-  getSLAAnalista: async (month?: number | null, year?: number | null, startDate?: string | null, endDate?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (month !== null && month !== undefined) params.month = month
-    if (year !== null && year !== undefined) params.year = year
-    if (startDate) params.startDate = startDate
-    if (endDate) params.endDate = endDate
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/sla-analista', { params })
-    return response
-  },
-
-  getSatisfacao: async (month?: number | null, year?: number | null, startDate?: string | null, endDate?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (month !== null && month !== undefined) params.month = month
-    if (year !== null && year !== undefined) params.year = year
-    if (startDate) params.startDate = startDate
-    if (endDate) params.endDate = endDate
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/satisfacao', { params })
-    return response
-  },
-
-  getSatisfacaoClassificacao: async (month?: number | null, year?: number | null, startDate?: string | null, endDate?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (month !== null && month !== undefined) params.month = month
-    if (year !== null && year !== undefined) params.year = year
-    if (startDate) params.startDate = startDate
-    if (endDate) params.endDate = endDate
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/satisfacao-classificacao', { params })
-    return response
-  },
-
-  getTop20Usuarios: async (month?: number | null, year?: number | null, startDate?: string | null, endDate?: string | null) => {
-    const params: Record<string, any> = {}
-    if (month !== null && month !== undefined) params.month = month
-    if (year !== null && year !== undefined) params.year = year
-    if (startDate) params.startDate = startDate
-    if (endDate) params.endDate = endDate
-    const response = await api.get('/chamados/top-20-usuarios', { params })
-    return response
-  },
-
-  getListaAnalistas: async () => {
-    const response = await api.get('/chamados/lista-analistas')
-    return response
-  },
-
-  // Dashboard de Chamados
-  getDashboardStatus: async (ticket?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (ticket) params.ticket = ticket
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/dashboard/status', { params })
-    return response
-  },
-
-  getDashboardTempoAberto: async (ticket?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (ticket) params.ticket = ticket
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/dashboard/tempo-aberto', { params })
-    return response
-  },
-
-  getDashboardUltimaAtualizacao: async (ticket?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (ticket) params.ticket = ticket
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/dashboard/ultima-atualizacao', { params })
-    return response
-  },
-
-  getDashboardDetalhes: async (status?: string | null, tempoAberto?: string | null, ultimaAtualizacao?: string | null, responsavel?: string | null, ticket?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (status) params.status = status
-    if (tempoAberto) params.tempoAberto = tempoAberto
-    if (ultimaAtualizacao) params.ultimaAtualizacao = ultimaAtualizacao
-    if (responsavel) params.responsavel = responsavel
-    if (ticket) params.ticket = ticket
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/dashboard/detalhes', { params })
-    return response
-  },
-
-  getDashboardCausaRaiz: async (ticket?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (ticket) params.ticket = ticket
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/dashboard/causa-raiz', { params })
-    return response
-  },
-
-  getDashboardEmAndamento: async (ticket?: string | null, analistaFilter?: string | null, analistas?: string[] | null) => {
-    const params: Record<string, any> = {}
-    if (ticket) params.ticket = ticket
-    if (analistaFilter) params.analistaFilter = analistaFilter
-    if (analistas) params.analistas = JSON.stringify(analistas)
-    const response = await api.get('/chamados/dashboard/em-andamento', { params })
-    return response
-  },
-}
+// ⚠️ REMOVIDO: chamadosApi foi removido pois o ServiceUp agora é backend independente (Node.js)
+// O ServiceUp frontend (porta 5174) faz requisições diretamente para o ServiceUp backend (porta 3000)
+// Não há mais necessidade de chamadas de chamados através do backend New Farol
+// Se você precisar fazer chamadas para o ServiceUp, use diretamente o backend ServiceUp em http://localhost:3000/api
 
 export const featuresAnalyticsApi = {
   getCriadas: async (month?: number | null, year?: number | null, startDate?: string | null, endDate?: string | null, clientFilter?: string | null, clients?: string[] | null, pmoFilter?: string | null, pmo?: string[] | null) => {

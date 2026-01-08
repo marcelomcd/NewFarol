@@ -4,7 +4,6 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { featuresApi, FeatureDetail, RelationsResponse } from '../services/api'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import CommentsList from '../components/Comments/CommentsList'
 import FarolCircle from '../components/Farol/FarolCircle'
 import Tooltip from '../components/Tooltip/Tooltip'
 import ProgressBar from '../components/ProgressBar/ProgressBar'
@@ -57,6 +56,22 @@ export default function FeatureDetails() {
     queryKey: ['feature', id],
     queryFn: () => featuresApi.get(Number(id)),
     enabled: !!id,
+    retry: (failureCount, error: any) => {
+      // Não retry para 404 (feature não encontrada)
+      if (error?.response?.status === 404) {
+        return false
+      }
+      // Retry para 429 (rate limit) até 3 vezes com backoff
+      if (error?.response?.status === 429) {
+        return failureCount < 3
+      }
+      // Retry padrão para outros erros
+      return failureCount < 2
+    },
+    retryDelay: (attemptIndex) => {
+      // Backoff exponencial: 1s, 2s, 4s
+      return Math.min(1000 * 2 ** attemptIndex, 4000)
+    },
   })
 
   // Buscar relações (User Stories e Tasks)
@@ -75,17 +90,40 @@ export default function FeatureDetails() {
   }
 
   if (error || !data) {
+    const errorStatus = (error as any)?.response?.status
+    const isRateLimit = errorStatus === 429
+    const isNotFound = errorStatus === 404
+    
     return (
       <div className="glass dark:glass-dark p-6 rounded-lg text-center animate-fadeIn">
-        <p className="text-red-500 text-lg">
-          Erro ao carregar feature: {error instanceof Error ? error.message : 'Feature não encontrada'}
-        </p>
-        <button
-          onClick={() => navigate('/features')}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Voltar para Features
-        </button>
+        {isRateLimit ? (
+          <>
+            <p className="text-yellow-600 dark:text-yellow-400 text-lg font-semibold mb-2">
+              ⚠️ Muitas requisições
+            </p>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              O servidor está recebendo muitas requisições. Por favor, aguarde alguns segundos e tente novamente.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Tentar Novamente
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-red-500 text-lg">
+              Erro ao carregar feature: {error instanceof Error ? error.message : 'Feature não encontrada'}
+            </p>
+            <button
+              onClick={() => navigate('/features')}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Voltar para Features
+            </button>
+          </>
+        )}
       </div>
     )
   }
@@ -402,8 +440,6 @@ export default function FeatureDetails() {
         </div>
       )}
 
-      {/* Comentários */}
-      <CommentsList featureId={feature.id} />
 
       {/* Todos os Campos (Colapsável) - Normalizados */}
       <div className="glass dark:glass-dark p-6 rounded-lg">

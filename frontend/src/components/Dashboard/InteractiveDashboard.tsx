@@ -17,10 +17,12 @@ import {
 import { format, subDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import TrafficLight from '../Farol/TrafficLight'
+import FarolTooltip from '../Farol/FarolTooltip'
 import StatusCardsGrid from '../Status/StatusCardsGrid'
 import DrillDownModal from '../Modal/DrillDownModal'
 import ClientsModal from '../Modal/ClientsModal'
 import PMOsModal from '../Modal/PMOsModal'
+import CustomTooltip from './CustomTooltip'
 import { FarolStatus, getFarolStatusSummary, normalizeFarolStatus } from '../../utils/farol'
 import { normalizarStatus } from '../../utils/statusNormalization'
 
@@ -148,6 +150,68 @@ export default function InteractiveDashboard() {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '')
       .trim()
+  }
+
+  // Helpers (baseado no Backup) para PMO / Responsável / TargetDate
+  // IMPORTANTE: extractPMO deve ser definido antes de filteredItems que o usa
+  const extractPMO = (item: Feature): string => {
+    // 1) campo normalizado
+    if (item.pmo && item.pmo.trim() !== '') return item.pmo.trim()
+
+    // 2) raw_fields_json custom PMO
+    const raw: any = (item as any).raw_fields_json
+    if (raw) {
+      const customPMO = raw['Custom.PMO'] || raw['Custom.Pmo']
+      if (customPMO) {
+        if (typeof customPMO === 'object' && customPMO.displayName && customPMO.displayName.trim() !== '') {
+          return customPMO.displayName.trim()
+        }
+        if (typeof customPMO === 'string' && customPMO.trim() !== '') return customPMO.trim()
+      }
+
+      // 3) fallback AssignedTo
+      const assignedTo = raw['System.AssignedTo']
+      if (assignedTo && typeof assignedTo === 'object' && assignedTo.displayName && assignedTo.displayName.trim() !== '') {
+        return assignedTo.displayName.trim()
+      }
+      if (typeof assignedTo === 'string' && assignedTo.trim() !== '') return assignedTo.trim()
+    }
+
+    // 4) fallback assigned_to (string)
+    const assigned = (item as any).assigned_to
+    if (assigned && typeof assigned === 'string' && assigned.trim() !== '') return assigned.trim()
+
+    return 'Não atribuído'
+  }
+
+  const extractResponsavelCliente = (item: Feature): string => {
+    // 0) campo já normalizado pelo backend
+    const direct = (item as any).responsible
+    if (direct && typeof direct === 'string' && direct.trim() !== '') return direct.trim()
+
+    const raw: any = (item as any).raw_fields_json
+    if (raw) {
+      const rc = raw['Custom.ResponsavelCliente']
+      if (rc) {
+        if (typeof rc === 'object' && rc.displayName && rc.displayName.trim() !== '') return rc.displayName.trim()
+        if (typeof rc === 'string' && rc.trim() !== '') return rc.trim()
+      }
+    }
+    return 'Não atribuído'
+  }
+
+  const getTargetDate = (item: Feature): Date | null => {
+    const direct = (item as any).target_date
+    const raw: any = (item as any).raw_fields_json
+    const rawDate = raw ? raw['Microsoft.VSTS.Scheduling.TargetDate'] : null
+    const val = direct || rawDate
+    if (!val) return null
+    try {
+      const d = new Date(val)
+      return Number.isNaN(d.getTime()) ? null : d
+    } catch {
+      return null
+    }
   }
 
   // Filtrar por seleções
@@ -297,74 +361,12 @@ export default function InteractiveDashboard() {
     return Array.from(states).sort()
   }, [filteredItems])
 
-  // Helpers (baseado no Backup) para PMO / Responsável / TargetDate
-  // IMPORTANTE: extractPMO deve ser definido antes de uniquePMOs
-  const extractPMO = (item: Feature): string => {
-    // 1) campo normalizado
-    if (item.pmo && item.pmo.trim() !== '') return item.pmo.trim()
-
-    // 2) raw_fields_json custom PMO
-    const raw: any = (item as any).raw_fields_json
-    if (raw) {
-      const customPMO = raw['Custom.PMO'] || raw['Custom.Pmo']
-      if (customPMO) {
-        if (typeof customPMO === 'object' && customPMO.displayName && customPMO.displayName.trim() !== '') {
-          return customPMO.displayName.trim()
-        }
-        if (typeof customPMO === 'string' && customPMO.trim() !== '') return customPMO.trim()
-      }
-
-      // 3) fallback AssignedTo
-      const assignedTo = raw['System.AssignedTo']
-      if (assignedTo && typeof assignedTo === 'object' && assignedTo.displayName && assignedTo.displayName.trim() !== '') {
-        return assignedTo.displayName.trim()
-      }
-      if (typeof assignedTo === 'string' && assignedTo.trim() !== '') return assignedTo.trim()
-    }
-
-    // 4) fallback assigned_to (string)
-    const assigned = (item as any).assigned_to
-    if (assigned && typeof assigned === 'string' && assigned.trim() !== '') return assigned.trim()
-
-    return 'Não atribuído'
-  }
-
   // Mantido por compatibilidade (dropdown de filtro). A lista completa/contagem usa pmoCounts.
   // IMPORTANTE: Usar extractPMO para incluir PMOs de AssignedTo, não apenas do campo pmo
   const uniquePMOs = useMemo(() => {
     const pmos = new Set(filteredItems.map((item) => extractPMO(item)).filter(Boolean))
     return Array.from(pmos).sort()
   }, [filteredItems])
-
-  const extractResponsavelCliente = (item: Feature): string => {
-    // 0) campo já normalizado pelo backend
-    const direct = (item as any).responsible
-    if (direct && typeof direct === 'string' && direct.trim() !== '') return direct.trim()
-
-    const raw: any = (item as any).raw_fields_json
-    if (raw) {
-      const rc = raw['Custom.ResponsavelCliente']
-      if (rc) {
-        if (typeof rc === 'object' && rc.displayName && rc.displayName.trim() !== '') return rc.displayName.trim()
-        if (typeof rc === 'string' && rc.trim() !== '') return rc.trim()
-      }
-    }
-    return 'Não atribuído'
-  }
-
-  const getTargetDate = (item: Feature): Date | null => {
-    const direct = (item as any).target_date
-    const raw: any = (item as any).raw_fields_json
-    const rawDate = raw ? raw['Microsoft.VSTS.Scheduling.TargetDate'] : null
-    const val = direct || rawDate
-    if (!val) return null
-    try {
-      const d = new Date(val)
-      return Number.isNaN(d.getTime()) ? null : d
-    } catch {
-      return null
-    }
-  }
 
   // Projetos atrasados: TargetDate < hoje
   const overdueProjects = useMemo(() => {
@@ -620,15 +622,15 @@ export default function InteractiveDashboard() {
       </div>
 
       {/* Layout: Semáforo à esquerda, Filtros e Cards à direita */}
-      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 lg:items-stretch">
         {/* Coluna esquerda: Semáforo */}
         <div className="w-fit">
-          <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all h-full flex flex-col w-fit min-w-fit">
+          <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all flex flex-col w-fit min-w-fit h-full">
             <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2 whitespace-nowrap">
               <span>🚦</span>
               <span>Status do Farol</span>
             </h2>
-            <div className="flex-1 flex flex-col items-center justify-center gap-4">
+            <div className="flex flex-col items-center justify-center gap-4 flex-1">
               <TrafficLight
                 summary={farolSummaryDisplay}
                 onStatusClick={(status) => {
@@ -641,28 +643,36 @@ export default function InteractiveDashboard() {
                 }}
               />
               {farolSummary['Indefinido'] && farolSummary['Indefinido'].count > 0 && (
-                <button
-                  onClick={() => {
-                    const items = activeItems.filter(
-                      (item) => !item.farol_status || normalizeFarolStatus(item.farol_status) === 'Indefinido',
-                    )
-                    if (items.length > 0) {
-                      openDrillDown('Features sem Status de Farol', items as Feature[], 'Status: Indefinido')
-                    }
-                  }}
-                  className="px-4 py-2 bg-gray-500/20 hover:bg-gray-500/30 rounded-lg transition-all duration-300 backdrop-blur-sm border border-gray-500/30 hover:border-gray-500/50 text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:scale-105"
+                <FarolTooltip
+                  status="Indefinido"
+                  count={farolSummary['Indefinido'].count}
+                  percentage={farolSummary['Indefinido'].percentage}
+                  color={FAROL_COLORS['Indefinido']}
+                  position="top"
                 >
-                  Indefinido: {farolSummary['Indefinido'].count} projeto{farolSummary['Indefinido'].count !== 1 ? 's' : ''}
-                </button>
+                  <button
+                    onClick={() => {
+                      const items = activeItems.filter(
+                        (item) => !item.farol_status || normalizeFarolStatus(item.farol_status) === 'Indefinido',
+                      )
+                      if (items.length > 0) {
+                        openDrillDown('Features sem Status de Farol', items as Feature[], 'Status: Indefinido')
+                      }
+                    }}
+                    className="px-4 py-2 bg-gray-500/20 hover:bg-gray-500/30 rounded-lg transition-all duration-300 backdrop-blur-sm border border-gray-500/30 hover:border-gray-500/50 text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:scale-105"
+                  >
+                    Indefinido: {farolSummary['Indefinido'].count} projeto{farolSummary['Indefinido'].count !== 1 ? 's' : ''}
+                  </button>
+                </FarolTooltip>
               )}
             </div>
           </div>
         </div>
 
         {/* Coluna direita: Filtros e Cards */}
-        <div className="space-y-6">
+        <div className="flex flex-col lg:h-full justify-between gap-4">
           {/* Filtros */}
-          <div className="glass dark:glass-dark p-4 rounded-lg grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="glass dark:glass-dark p-5 rounded-lg grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Farol</label>
               <select
@@ -738,53 +748,53 @@ export default function InteractiveDashboard() {
           </div>
 
           {/* Cards principais */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <div
-              className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all group cursor-pointer border-l-4 border-blue-500"
+              className="glass dark:glass-dark p-8 rounded-lg hover-lift transition-all group cursor-pointer border-b-4 border-blue-500/30 hover:border-blue-500"
               onClick={() => openDrillDown('Total de Projetos', filteredItems as Feature[], 'Todos os Projetos')}
             >
-              <div className="text-sm font-medium text-gray-600 dark:text-gray-400">Total de Projetos</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Total de Projetos</div>
               <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
                 {totalProjects}
               </div>
             </div>
 
             <div
-              className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all group cursor-pointer border-l-4 border-green-500"
+              className="glass dark:glass-dark p-8 rounded-lg hover-lift transition-all group cursor-pointer border-b-4 border-green-500/30 hover:border-green-500"
               onClick={() => {
                 const items = (openFeaturesWiqlData?.items || filteredItems) as Feature[]
                 openDrillDown('Projetos Em Aberto', items, 'Em Aberto')
               }}
             >
-              <div className="text-sm font-medium text-gray-600 dark:text-gray-400">Em Aberto</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Em Aberto</div>
               <div className="text-4xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">
                 {openCount}
               </div>
             </div>
 
             <div
-              className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all group cursor-pointer border-l-4 border-red-500"
+              className="glass dark:glass-dark p-8 rounded-lg hover-lift transition-all group cursor-pointer border-b-4 border-red-500/30 hover:border-red-500"
               onClick={() => {
                 if (overdueProjects.length > 0) {
                   openDrillDown('Projetos Atrasados', overdueProjects as Feature[], 'Atrasados')
                 }
               }}
             >
-              <div className="text-sm font-medium text-gray-600 dark:text-gray-400">Atrasados</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Atrasados</div>
               <div className="text-4xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
                 {!hasFilters ? (countsWiqlData?.overdue ?? 0) : overdueProjects.length}
               </div>
             </div>
 
             <div
-              className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all group cursor-pointer border-l-4 border-yellow-500"
+              className="glass dark:glass-dark p-8 rounded-lg hover-lift transition-all group cursor-pointer border-b-4 border-yellow-500/30 hover:border-yellow-500"
               onClick={() => {
                 if (nearDeadlineProjects.length > 0) {
                   openDrillDown('Projetos Próximos do Prazo', nearDeadlineProjects as Feature[], 'Próximos do Prazo')
                 }
               }}
             >
-              <div className="text-sm font-medium text-gray-600 dark:text-gray-400">Próximos do Prazo</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Próximos do Prazo</div>
               <div className="text-4xl font-bold bg-gradient-to-r from-yellow-600 to-yellow-700 bg-clip-text text-transparent">
                 {!hasFilters ? (nearDeadlineWiqlData?.count ?? countsWiqlData?.near_deadline ?? 0) : nearDeadlineProjects.length}
               </div>
@@ -792,35 +802,35 @@ export default function InteractiveDashboard() {
           </div>
 
           {/* Cards secundários */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div
-              className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all group cursor-pointer"
+              className="glass dark:glass-dark p-8 rounded-lg hover-lift transition-all group cursor-pointer border-b-4 border-orange-500/30 hover:border-orange-500"
               onClick={() => setClientsModal({ isOpen: true })}
             >
-              <div className="text-sm font-medium text-gray-600 dark:text-gray-400">Clientes</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Clientes</div>
               <div className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent">
                 {validClientsLoading ? '...' : uniqueClients.length}
               </div>
             </div>
 
             <div
-              className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all group cursor-pointer"
+              className="glass dark:glass-dark p-8 rounded-lg hover-lift transition-all group cursor-pointer border-b-4 border-purple-500/30 hover:border-purple-500"
               onClick={() => setPMOsModal({ isOpen: true })}
             >
-              <div className="text-sm font-medium text-gray-600 dark:text-gray-400">PMOs</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">PMOs</div>
               <div className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent">
                 {pmoCounts.length}
               </div>
             </div>
 
             <div
-              className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all group cursor-pointer"
+              className="glass dark:glass-dark p-8 rounded-lg hover-lift transition-all group cursor-pointer border-b-4 border-gray-500/30 hover:border-gray-500"
               onClick={() => {
                 const items = (closedFeaturesWiqlData?.items || []) as Feature[]
                 if (items.length > 0) openDrillDown('Features Encerradas (Closed)', items, 'Closed')
               }}
             >
-              <div className="text-sm font-medium text-gray-600 dark:text-gray-400">Encerrados</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Encerrados</div>
               <div className="text-4xl font-bold bg-gradient-to-r from-gray-600 to-gray-700 bg-clip-text text-transparent">
                 {closedFeaturesWiqlData?.count ?? 0}
               </div>
@@ -878,7 +888,7 @@ export default function InteractiveDashboard() {
                   <Cell key={`cell-${index}`} fill={STATUS_PIE_COLORS[entry.name] || COLORS.primary} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip content={<CustomTooltip />} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -892,7 +902,7 @@ export default function InteractiveDashboard() {
             <LineChart data={closedByDay}>
               <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} interval={0} />
               <YAxis />
-              <Tooltip />
+              <Tooltip content={<CustomTooltip />} />
               <Line
                 type="monotone"
                 dataKey="closed"
@@ -916,7 +926,7 @@ export default function InteractiveDashboard() {
             <BarChart data={pmoCounts.slice(0, 10)} layout="vertical">
               <XAxis type="number" />
               <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
-              <Tooltip />
+              <Tooltip content={<CustomTooltip />} />
               <Bar
                 dataKey="value"
                 fill={COLORS.purple}
@@ -970,7 +980,7 @@ export default function InteractiveDashboard() {
             <BarChart data={responsibleCounts.slice(0, 10)}>
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} tick={{ fontSize: 12 }} />
               <YAxis />
-              <Tooltip />
+              <Tooltip content={<CustomTooltip />} />
               <Bar
                 dataKey="value"
                 fill={COLORS.success}

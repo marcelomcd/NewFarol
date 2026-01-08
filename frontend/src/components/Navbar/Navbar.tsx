@@ -9,18 +9,80 @@ interface NavbarProps {
   farolStatus?: FarolStatus | null
 }
 
-export default function Navbar({ farolStatus }: NavbarProps) {
+export default function Navbar({ farolStatus: propFarolStatus }: NavbarProps) {
   const { user, logout, isAuthenticated } = useAuth()
   const location = useLocation()
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
-  // Buscar status do farol se não fornecido
+  // Extrair ID da URL diretamente do pathname
+  const featureIdMatch = location.pathname.match(/^\/features\/(\d+)/)
+  const featureId = featureIdMatch ? featureIdMatch[1] : null
+
+  // Verificar se estamos na página de detalhes da feature
+  const isFeatureDetailsPage = location.pathname.startsWith('/features/') && !!featureId
+  
+  // Buscar farolStatus da feature atual APENAS se estivermos na página de detalhes
+  // Usa a mesma queryKey que FeatureDetails para compartilhar o cache
+  const { data: currentFeature, isLoading: isLoadingFeature } = useQuery({
+    queryKey: ['feature', featureId],
+    queryFn: () => featuresApi.get(Number(featureId)),
+    enabled: isFeatureDetailsPage && !propFarolStatus && !!featureId,
+    refetchOnMount: false, // Usar cache se já existir
+    refetchOnWindowFocus: false,
+  })
+
+  // Determinar farolStatus: APENAS usar se estivermos na página de detalhes
+  // prop > feature atual > null
+  const farolStatus = isFeatureDetailsPage 
+    ? (propFarolStatus || (currentFeature?.farol_status ? normalizeFarolStatus(currentFeature.farol_status) : null))
+    : null
+  
+  // Debug: log para verificar se está detectando corretamente
+  useEffect(() => {
+    if (isFeatureDetailsPage) {
+      const rawStatus = currentFeature?.farol_status
+      const normalized = rawStatus ? normalizeFarolStatus(rawStatus) : null
+      const willUseColor = isFeatureDetailsPage && normalized && normalized !== 'Indefinido'
+      
+      console.log('[Navbar] 🔍 Debug Farol:', {
+        pathname: location.pathname,
+        featureId: featureId,
+        isFeatureDetailsPage,
+        isLoading: isLoadingFeature,
+        hasCurrentFeature: !!currentFeature,
+        farol_status_raw: rawStatus,
+        farol_status_normalized: normalized,
+        finalFarolStatus: farolStatus,
+        willUseFarolColor: willUseColor,
+        currentFeatureFull: currentFeature ? {
+          id: currentFeature.id,
+          title: currentFeature.title,
+          farol_status: currentFeature.farol_status
+        } : null
+      })
+      
+      if (willUseColor) {
+        console.log('[Navbar] ✅ Aplicando cor do farol:', normalized)
+      } else {
+        console.log('[Navbar] ⚠️ NÃO aplicando cor do farol. Razão:', {
+          isFeatureDetailsPage,
+          hasNormalized: !!normalized,
+          isIndefinido: normalized === 'Indefinido',
+          hasPropFarolStatus: !!propFarolStatus
+        })
+      }
+    } else {
+      console.log('[Navbar] ℹ️ Não é página de detalhes, usando cor padrão')
+    }
+  }, [isFeatureDetailsPage, currentFeature, farolStatus, location.pathname, featureId, isLoadingFeature, propFarolStatus])
+
+  // Buscar status do farol do dashboard se não fornecido
   const { data: featuresData } = useQuery({
     queryKey: ['features', 'all'],
     queryFn: () => featuresApi.list({ limit: 1000 }),
-    enabled: !farolStatus,
+    enabled: !farolStatus && !currentFeature,
   })
 
   // Detectar scroll para efeito de navbar
@@ -33,35 +95,34 @@ export default function Navbar({ farolStatus }: NavbarProps) {
   }, [])
 
   // Determinar cor da navbar baseada no farol
-  const getNavbarColor = (): string => {
-    if (farolStatus) {
+  const getNavbarColor = (): { bg: string; text: string } => {
+    if (farolStatus && farolStatus !== 'Indefinido') {
       switch (farolStatus) {
         case 'Sem Problema':
-          return 'bg-gradient-to-r from-green-500 to-green-600'
+          return {
+            bg: 'bg-[#198754]',
+            text: 'text-white'
+          }
         case 'Com Problema':
-          return 'bg-gradient-to-r from-yellow-500 to-yellow-600'
+          return {
+            bg: 'bg-[#FFC107]',
+            text: 'text-gray-900'
+          }
         case 'Problema Crítico':
-          return 'bg-gradient-to-r from-quali-red-500 to-quali-red-600'
+          return {
+            bg: 'bg-[#DC3545]',
+            text: 'text-white'
+          }
         default:
-          return 'bg-gradient-to-r from-quali-red-500 to-quali-red-600'
+          break
       }
     }
 
-    // Se não há farolStatus, buscar do dashboard
-    if (featuresData?.items) {
-      const items = featuresData.items
-      const criticalCount = items.filter(
-        (item) => normalizeFarolStatus(item.farol_status) === 'Problema Crítico'
-      ).length
-      const problemCount = items.filter(
-        (item) => normalizeFarolStatus(item.farol_status) === 'Com Problema'
-      ).length
-
-      if (criticalCount > 0) return 'bg-gradient-to-r from-quali-red-500 to-quali-red-600'
-      if (problemCount > 0) return 'bg-gradient-to-r from-yellow-500 to-yellow-600'
+    // Cor padrão: azul (diferente do verde/teal da logo) - mesma para ambos os temas
+    return {
+      bg: 'bg-blue-600',
+      text: 'text-white'
     }
-
-    return 'bg-gradient-to-r from-quali-red-500 to-quali-red-600'
   }
 
   // Toggle theme
@@ -80,7 +141,7 @@ export default function Navbar({ farolStatus }: NavbarProps) {
     document.documentElement.classList.toggle('dark', newTheme === 'dark')
   }
 
-  const navbarColor = getNavbarColor()
+  const navbarColors = getNavbarColor()
 
   const navLinks = [
     { path: '/', label: 'Dashboard' },
@@ -90,14 +151,69 @@ export default function Navbar({ farolStatus }: NavbarProps) {
     { path: '/reports', label: 'Relatórios', adminOnly: true },
   ].filter(link => !link.adminOnly || (isAuthenticated && user?.is_admin))
 
-  // A navbar sempre usa cores escuras (vermelho, verde, amarelo), então o texto branco está correto
-  // Mas vamos garantir que o contraste seja bom em todos os casos
+  // Aplicar estilo glass com cores baseadas no farol APENAS na página de detalhes
+  const getNavbarStyle = () => {
+    // Só aplicar cores do farol se estivermos na página de detalhes E tivermos um farolStatus válido
+    if (isFeatureDetailsPage && farolStatus && farolStatus !== 'Indefinido') {
+      console.log('[Navbar] 🎨 Aplicando cor do farol:', farolStatus)
+      
+      switch (farolStatus) {
+        case 'Sem Problema':
+          return {
+            background: 'linear-gradient(135deg, rgba(25, 135, 84, 0.85) 0%, rgba(25, 135, 84, 0.75) 100%)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3)'
+          }
+        case 'Com Problema':
+          return {
+            background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.85) 0%, rgba(255, 193, 7, 0.75) 100%)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(0, 0, 0, 0.1)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3)'
+          }
+        case 'Problema Crítico':
+          console.log('[Navbar] 🔴 Aplicando VERMELHO para Problema Crítico')
+          return {
+            background: 'linear-gradient(135deg, rgba(220, 53, 69, 0.85) 0%, rgba(220, 53, 69, 0.75) 100%)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3)'
+          }
+        default:
+          console.log('[Navbar] ⚠️ FarolStatus não reconhecido:', farolStatus)
+          break
+      }
+    }
+    
+    // Cor padrão: azul (diferente do verde/teal da logo) - mesma para ambos os temas
+    // Usada quando NÃO estamos na página de detalhes ou quando farolStatus é Indefinido
+    if (isFeatureDetailsPage) {
+      console.log('[Navbar] ℹ️ Usando cor padrão (azul) porque:', {
+        hasFarolStatus: !!farolStatus,
+        isIndefinido: farolStatus === 'Indefinido',
+        farolStatusValue: farolStatus
+      })
+    }
+    
+    return {
+      background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.85) 0%, rgba(29, 78, 216, 0.75) 100%)',
+      backdropFilter: 'blur(20px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+      border: '1px solid rgba(255, 255, 255, 0.18)',
+      boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15), inset 0 1px 1px 0 rgba(255, 255, 255, 0.4)'
+    }
+  }
+
   return (
     <nav
-      className={`${navbarColor} text-white shadow-lg transition-all duration-500 sticky top-0 z-50 ${
-        scrolled ? 'shadow-2xl backdrop-blur-md bg-opacity-95' : ''
+      className={`${navbarColors.text} shadow-lg transition-all duration-500 sticky top-0 z-50 ${
+        scrolled ? 'shadow-2xl' : ''
       }`}
-      style={{ color: '#FFFFFF' }}
+      style={getNavbarStyle()}
     >
       <div className="container mx-auto px-4 lg:px-6">
         <div className="flex items-center justify-between h-16 lg:h-18">
@@ -106,20 +222,26 @@ export default function Navbar({ farolStatus }: NavbarProps) {
             to="/"
             className="flex items-center gap-3 group transition-all duration-300 hover:scale-105"
           >
-            <div className="relative">
-              {/* Logo Quali IT */}
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/30 group-hover:bg-white/30 transition-all duration-300 overflow-hidden">
-                <svg width="32" height="32" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full p-1">
-                  <text x="5" y="28" fontFamily="Arial, sans-serif" fontSize="18" fontWeight="bold" fill="white">QUALI</text>
-                  <text x="68" y="28" fontFamily="Arial, sans-serif" fontSize="18" fontWeight="bold" fill="white">IT</text>
-                </svg>
-              </div>
-              {/* Efeito de brilho no hover */}
-              <div className="absolute inset-0 rounded-lg bg-white/0 group-hover:bg-white/10 transition-all duration-300 blur-sm"></div>
+            {/* Logo Quali IT */}
+            <div className="relative flex-shrink-0">
+              <img 
+                src="/logo-qualiit.svg" 
+                alt="Quali IT Logo" 
+                className="h-8 w-auto opacity-90 group-hover:opacity-100 transition-opacity duration-300"
+              />
             </div>
-            <div className="flex flex-col">
-              <span className="text-lg font-bold tracking-tight">Farol Operacional</span>
-              <span className="text-xs opacity-80 font-medium">by Quali IT</span>
+            
+            {/* Semáforo (Farol) */}
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-1 bg-black/20 dark:bg-white/10 rounded-lg p-1.5 border border-white/20">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-lg"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-lg"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-lg"></div>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-lg font-bold tracking-tight">Farol Operacional</span>
+                <span className="text-xs opacity-80 font-medium">by Quali IT</span>
+              </div>
             </div>
           </Link>
 

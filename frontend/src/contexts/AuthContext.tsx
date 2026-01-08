@@ -52,7 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const code = err.code
 
           // Não retry para 401 (token inválido) ou 403
+          // Também não tratar 429 como erro de autenticação
           if (status === 401 || status === 403) {
+            throw err
+          }
+          
+          // 429 (rate limit) não é erro de autenticação - não limpar token
+          if (status === 429) {
             throw err
           }
 
@@ -92,10 +98,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[Auth] Detalhes:', error.response?.data)
       }
       
-      // Token inválido, limpar
-      localStorage.removeItem('auth_token')
-      setToken(null)
-      setUser(null)
+      // 429 (rate limit) não é erro de autenticação - não limpar token
+      if (error.response?.status === 429) {
+        console.warn('[Auth] ⚠️ Rate limit - não é erro de autenticação')
+        setIsLoading(false)
+        throw error
+      }
+      
+      // Apenas limpar token para erros de autenticação (401, 403)
+      // Outros erros (500, network) não devem limpar o token
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.warn('[Auth] ⚠️ Token inválido ou sem permissão - limpando token')
+        localStorage.removeItem('auth_token')
+        setToken(null)
+        setUser(null)
+      }
+      
       setIsLoading(false)
       throw error // Re-throw para permitir tratamento no catch
     }
@@ -107,16 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedToken) {
       setToken(storedToken)
       // Validar token com backend
-      validateToken(storedToken).catch((error) => {
-        // Se a validação falhar (backend offline, token inválido, etc), 
-        // garantir que isLoading seja false para permitir redirecionamento
-        console.error('[Auth] Erro ao validar token no useEffect:', error)
-        setIsLoading(false)
-        // Limpar token inválido
-        localStorage.removeItem('auth_token')
-        setToken(null)
-        setUser(null)
-      })
+      validateToken(storedToken)
     } else {
       setIsLoading(false)
     }

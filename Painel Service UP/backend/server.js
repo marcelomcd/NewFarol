@@ -43,6 +43,8 @@ app.get('/api', (req, res) => {
   res.json({
     message: 'Painel Service UP API',
     version: '1.0.0',
+    status: '✅ Backend funcionando corretamente',
+    database: 'dw_combio.bi_chamados_service_up',
     endpoints: {
       health: '/api/health',
       chamados: {
@@ -60,7 +62,12 @@ app.get('/api', (req, res) => {
           'GET /api/chamados/satisfacao',
           'GET /api/chamados/satisfacao-classificacao',
           'GET /api/chamados/top-20-usuarios',
-          'GET /api/chamados/dashboard'
+          'GET /api/chamados/dashboard/status',
+          'GET /api/chamados/dashboard/tempo-aberto',
+          'GET /api/chamados/dashboard/ultima-atualizacao',
+          'GET /api/chamados/dashboard/detalhes',
+          'GET /api/chamados/dashboard/causa-raiz',
+          'GET /api/chamados/dashboard/em-andamento'
         ]
       }
     }
