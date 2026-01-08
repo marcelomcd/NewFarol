@@ -1,10 +1,13 @@
 import axios from 'axios'
 
-// URL do backend - usar variável de ambiente ou padrão para desenvolvimento
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// URL do backend - usar variável de ambiente ou proxy do Vite
+// Se VITE_API_URL estiver definido, usar URL absoluta; senão, usar '/api' (proxyado pelo Vite para http://localhost:8000)
+const API_BASE_URL = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL}/api` 
+  : '/api'
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ? `${API_BASE_URL}/api` : '/api', // Se VITE_API_URL estiver definido, usar absoluto; senão, usar relativo (proxy)
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
