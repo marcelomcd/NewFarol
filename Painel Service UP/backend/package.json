@@ -1,0 +1,24 @@
+{
+  "name": "serviceup-backend",
+  "version": "1.0.0",
+  "description": "Backend Node.js/Express para Painel Service UP",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "serviceup",
+    "chamados",
+    "api"
+  ],
+  "author": "Davi Silva",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "mysql2": "^3.6.5"
+  }
+}
