@@ -12,10 +12,10 @@ export function createConnection() {
 
   const config = {
     host: process.env.DB_HOST || '179.191.91.6',
-    port: process.env.DB_PORT || 3306,
+    port: parseInt(process.env.DB_PORT) || 3306,
     user: process.env.DB_USER || 'Combio.biomassa',
-    password: process.env.DB_PASSWORD,
-    database: 'dw_combio',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'dw_combio',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
