@@ -38,6 +38,35 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'API funcionando' });
 });
 
+// Rota raiz da API - listar rotas disponíveis
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'Painel Service UP API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      chamados: {
+        base: '/api/chamados',
+        routes: [
+          'GET /api/chamados/lista-analistas',
+          'GET /api/chamados/atendidos',
+          'GET /api/chamados/aberto-fechado',
+          'GET /api/chamados/dominio',
+          'GET /api/chamados/datasul',
+          'GET /api/chamados/fluig',
+          'GET /api/chamados/analistas',
+          'GET /api/chamados/sla',
+          'GET /api/chamados/sla-analista',
+          'GET /api/chamados/satisfacao',
+          'GET /api/chamados/satisfacao-classificacao',
+          'GET /api/chamados/top-20-usuarios',
+          'GET /api/chamados/dashboard'
+        ]
+      }
+    }
+  });
+});
+
 // Routes
 app.use('/api/chamados', chamadosRoutes);
 
