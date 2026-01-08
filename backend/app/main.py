@@ -10,7 +10,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.core.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +58,11 @@ from app.api.middleware.error_handler_v2 import register_exception_handlers
 
 settings = get_settings()
 
-# Configurar logging
-setup_logging(debug=settings.debug)
+# Configurar logging básico
+logging.basicConfig(
+    level=logging.DEBUG if settings.debug else logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 
 @asynccontextmanager

@@ -26,17 +26,8 @@ import SlideCausaRaizMelhorias from './components/ServiceUp/slides/SlideCausaRai
 import SlideCausaRaizMelhoriasNovembro from './components/ServiceUp/slides/SlideCausaRaizMelhoriasNovembro.tsx';
 import SlideDashboardChamados from './components/ServiceUp/slides/SlideDashboardChamados.tsx';
 
-interface Slide {
-  id: number;
-  title: string;
-  component: React.ReactNode;
-  description: string;
-  icon: string;
-  size: 'small' | 'medium' | 'large';
-  color: 'purple' | 'blue' | 'green' | 'orange' | 'teal' | 'indigo' | 'red' | 'pink' | 'yellow' | 'cyan';
-}
-
-const slides: Slide[] = [
+// Array de slides - cada slide tem id, title, component, description, icon, size e color
+const slides = [
   {
     id: 1,
     title: 'Chamados Atendidos',
