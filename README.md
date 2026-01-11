@@ -14,7 +14,7 @@
 
 *Construído com arquitetura modular e boas práticas de engenharia de software*
 
-[Documentação](#documentacao) • [Instalação](#instalacao-rapida) • [Configuração](#configuracao) • [API](#api-endpoints)
+[Documentação](#documentacao) • [Instalação](#instalacao-rapida) • [Configuração](#configuracao) • [API](#api-endpoints) • [Git Submodules](#git-submodules)
 
 </div>
 
@@ -35,6 +35,7 @@
 - [Integração com Azure DevOps](#integracao-com-azure-devops)
 - [Autenticação](#autenticacao)
 - [Sistema Unificado](#sistema-unificado)
+- [Git Submodules](#git-submodules)
 - [Desenvolvimento](#desenvolvimento)
 - [Solução de Problemas](#solucao-de-problemas)
 - [Deploy](#deploy)
@@ -397,6 +398,42 @@ server: {
   },
 }
 ```
+
+</details>
+
+<details>
+<summary><strong>🔧 Painel Service UP - Variáveis de Ambiente</strong></summary>
+
+O Painel Service UP é um sistema independente que requer sua própria configuração.
+
+Crie um arquivo `.env` na pasta `Painel Service UP/backend/`:
+
+```env
+# ============================================
+# Database MySQL - OBRIGATÓRIO
+# ============================================
+DB_HOST=179.191.91.6
+DB_PORT=3306
+DB_USER=Combio.biomassa
+DB_PASSWORD=sua_senha_aqui
+
+# ============================================
+# Server Configuration
+# ============================================
+PORT=3000
+NODE_ENV=development
+
+# ============================================
+# CORS Configuration
+# ============================================
+FRONTEND_URL=http://localhost:5173
+SERVICEUP_FRONTEND_URL=http://localhost:5174
+```
+
+⚠️ **IMPORTANTE**: 
+- Nunca commite o arquivo `.env` com credenciais reais no Git
+- Use sempre valores de exemplo nos commits
+- Mantenha as credenciais seguras
 
 </details>
 
@@ -1084,6 +1121,160 @@ router.get('/atendidos', async (req, res) => {
 - ✅ **Zero conflitos**: Alterações em um sistema não afetam o outro
 - ✅ **Deploy independente**: Cada sistema pode ser deployado separadamente
 - ✅ **Manutenção isolada**: Problemas em um sistema não afetam o outro
+
+---
+
+<a id="git-submodules"></a>
+## 🔗 Git Submodules {#git-submodules}
+
+### Visão Geral
+
+O **Painel Service UP** está vinculado ao repositório **New Farol** como um **Git Submodule**, permitindo que os dois repositórios sejam mantidos separadamente enquanto o Service UP é referenciado dentro do New Farol.
+
+### 📚 Repositórios Vinculados
+
+- **New Farol**: `https://dev.azure.com/qualiit/ALM/_git/Qualiit.Portal.New.Farol`
+- **Painel Service UP**: `https://dev.azure.com/qualiit/ALM/_git/Qualiit.Portal.Clientes.v2` (submodule)
+
+### ✅ Como Funciona
+
+1. **Repositórios Separados**: Cada sistema mantém seu próprio histórico Git
+2. **Referência Específica**: O submodule referencia um commit específico do Service UP
+3. **Atualização Manual**: Você controla quando atualizar o Service UP dentro do New Farol
+4. **Independência Total**: Alterações no repositório Service UP não afetam automaticamente o New Farol
+
+### 🚀 Clonando o Repositório pela Primeira Vez
+
+Ao clonar o repositório New Farol, você precisa inicializar os submodules:
+
+```bash
+# Clonar com submodules recursivamente (RECOMENDADO)
+git clone --recurse-submodules https://dev.azure.com/qualiit/ALM/_git/Qualiit.Portal.New.Farol
+
+# OU se já clonou sem submodules
+git clone https://dev.azure.com/qualiit/ALM/_git/Qualiit.Portal.New.Farol
+cd Qualiit.Portal.New.Farol
+git submodule init
+git submodule update
+```
+
+### 🔄 Atualizando o Submodule (quando o Davi fizer alterações)
+
+Quando o Davi fizer alterações no repositório `Qualiit.Portal.Clientes.v2`, você pode atualizar o New Farol:
+
+```bash
+# Opção 1: Usar o script automatizado (RECOMENDADO)
+update-serviceup.bat
+
+# Opção 2: Manualmente
+cd "Painel Service UP"
+git checkout main
+git pull origin main
+cd ..
+git add "Painel Service UP"
+git commit -m "Update Painel Service UP submodule to latest version"
+git push origin main
+```
+
+### 📝 Fluxo de Trabalho
+
+#### Para Davi Silva (Painel Service UP)
+1. Trabalha normalmente no repositório `Qualiit.Portal.Clientes.v2`
+2. Faz commits e push normalmente
+3. **Não precisa** fazer nada no repositório New Farol
+
+#### Para Marcelo Macedo (New Farol)
+1. Quando necessário, atualiza o submodule usando `update-serviceup.bat`
+2. Ou manualmente seguindo os comandos acima
+3. Trabalha normalmente no New Farol
+4. Todos os arquivos ficam sincronizados no repositório New Farol
+
+### ⚠️ Comandos Úteis
+
+```bash
+# Ver o status dos submodules
+git submodule status
+
+# Atualizar todos os submodules
+git submodule update --remote
+
+# Ver o commit atual do submodule
+cd "Painel Service UP"
+git log -1
+```
+
+### 🔧 Configuração Inicial (Primeira Vez)
+
+Se você clonou este repositório e a pasta `Painel Service UP/` está vazia ou não funciona, siga estes passos:
+
+#### 1. Remover a pasta atual (se necessário)
+
+```bash
+# Se a pasta já existe e não é um submodule, remova-a para adicionar corretamente
+git rm -r --cached "Painel Service UP"
+rm -rf "Painel Service UP"  # Linux/macOS
+# ou rmdir /s /q "Painel Service UP"  # Windows
+```
+
+#### 2. Adicionar como Submodule
+
+```bash
+# Adicionar o repositório Service UP como submodule
+git submodule add https://dev.azure.com/qualiit/ALM/_git/Qualiit.Portal.Clientes.v2 "Painel Service UP"
+```
+
+#### 3. Inicializar e Atualizar
+
+```bash
+# Inicializar e atualizar os submodules
+git submodule update --init --recursive
+```
+
+#### 4. Commitar
+
+```bash
+git add .gitmodules "Painel Service UP"
+git commit -m "Add Painel Service UP as submodule"
+git push origin main
+```
+
+### ⚠️ Troubleshooting
+
+**Submodule aparece como "modified" mesmo sem alterações:**
+```bash
+cd "Painel Service UP"
+git status
+# Se não houver alterações, volte e faça:
+cd ..
+git submodule update
+```
+
+**Submodule vazio após clonar:**
+```bash
+git submodule init
+git submodule update
+```
+
+**Não consigo fazer push do submodule:**
+```bash
+# O submodule é um repositório separado
+# Faça push no repositório Service UP primeiro
+cd "Painel Service UP"
+git push origin main
+# Depois atualize a referência no New Farol
+cd ..
+git add "Painel Service UP"
+git commit -m "Update submodule"
+git push origin main
+```
+
+### ✅ Vantagens
+
+- ✅ **Repositórios separados** - Cada desenvolvedor trabalha no seu próprio repositório
+- ✅ **Histórico preservado** - Histórico completo de cada projeto mantido separadamente
+- ✅ **Versionamento claro** - Cada versão do New Farol referencia uma versão específica do Service UP
+- ✅ **Rollback fácil** - Pode voltar para versões anteriores do Service UP se necessário
+- ✅ **Sem duplicação** - Não duplica arquivos, apenas referencia o repositório
 
 ---
 
