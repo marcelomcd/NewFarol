@@ -53,17 +53,8 @@ const ServiceUp = () => {
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Painel Service Up</h1>
-        <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
-          Este painel é um sistema independente, exibido aqui via iframe.
-          Qualquer alteração no Service UP não requer alterações no New Farol.
-        </p>
-      </div>
-
-      {/* Conteúdo principal - Iframe */}
-      <div className="flex-grow relative p-4">
+      {/* Conteúdo principal - Iframe (ocupa toda a área) */}
+      <div className="flex-grow relative" style={{ height: 'calc(100vh - 80px)' }}>
         {/* Loading state */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-900 bg-opacity-75 z-10">
@@ -108,13 +99,19 @@ const ServiceUp = () => {
         <iframe
           src={serviceUpUrl}
           title="Painel Service Up"
-          className={`w-full h-full border-0 rounded-lg shadow-lg transition-opacity duration-300 ${
+          className={`w-full h-full border-0 transition-opacity duration-300 ${
             isLoading || error ? 'opacity-0' : 'opacity-100'
           }`}
           onLoad={handleIframeLoad}
           onError={handleIframeError}
           allow="fullscreen"
-          style={{ minHeight: '600px' }}
+          style={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%'
+          }}
           // IMPORTANTE: Não usar sandbox para permitir requisições HTTP completas
           // O iframe precisa fazer requisições para localhost:3000 (backend Service UP)
         />

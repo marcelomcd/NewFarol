@@ -1,9 +1,17 @@
+/**
+ * Servidor principal do New Farol Backend
+ * 
+ * Arquitetura:
+ * - Camada de API (Routes)
+ * - Middleware (CORS, Error Handling, Logging)
+ * - Integração Externa (Azure DevOps via WIQL)
+ */
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
 
 // Importar rotas
 import authRoutes from './routes/auth.js';
@@ -17,6 +25,10 @@ import azdoRoutes from './routes/azdo.js';
 import clientsRoutes from './routes/clients.js';
 import featuresAnalyticsRoutes from './routes/featuresAnalytics.js';
 import featuresV2Routes from './routes/featuresV2.js';
+
+// Importar utilitários
+import { logger } from './utils/logger.js';
+import { errorHandler } from './utils/errors.js';
 
 dotenv.config();
 
@@ -88,18 +100,15 @@ app.use('/api/azdo', azdoRoutes);
 app.use('/api/clients', clientsRoutes);
 app.use('/api/v2', featuresV2Routes);
 
-// Middleware de tratamento de erros
-app.use((err, req, res, next) => {
-  console.error('[ERROR]', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
-    ...(process.env.DEBUG === 'true' && { stack: err.stack })
-  });
-});
+// Middleware de tratamento de erros (deve ser o último middleware)
+app.use(errorHandler);
 
 // Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`\n🚀 New Farol Backend rodando em http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`📚 API info: http://localhost:${PORT}/api\n`);
+  logger.info('New Farol Backend iniciado', {
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    healthCheck: `http://localhost:${PORT}/health`,
+    apiInfo: `http://localhost:${PORT}/api`,
+  });
 });

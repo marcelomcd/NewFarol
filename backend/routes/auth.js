@@ -1,8 +1,15 @@
 /**
  * Rotas de autenticação
+ * 
+ * Endpoints:
+ * - GET /api/auth/me - Valida token e retorna informações do usuário
+ * - GET /api/auth/login - Inicia processo de autenticação OAuth
+ * - GET /api/auth/callback - Callback do OAuth
  */
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import { logger } from '../utils/logger.js';
+import { AuthenticationError, ValidationError } from '../utils/errors.js';
 
 const router = express.Router();
 
@@ -14,18 +21,23 @@ const ACCESS_TOKEN_EXPIRE_MINUTES = parseInt(process.env.ACCESS_TOKEN_EXPIRE_MIN
  * GET /api/auth/me
  * Valida token e retorna informações do usuário
  */
-router.get('/me', (req, res) => {
+router.get('/me', (req, res, next) => {
   try {
     const token = req.query.token || req.headers.authorization?.replace('Bearer ', '');
 
     if (!token) {
-      return res.status(401).json({ error: 'Token não fornecido' });
+      throw new AuthenticationError('Token não fornecido');
     }
 
     // Verificar token
     const decoded = jwt.verify(token, SECRET_KEY);
     
-    // Retornar informações do usuário
+    logger.debug('Token validado com sucesso', { 
+      email: decoded.email,
+      sub: decoded.sub,
+    });
+    
+    // Retornar informações do usuário (sem dados sensíveis)
     res.json({
       sub: decoded.sub,
       email: decoded.email,
@@ -35,14 +47,17 @@ router.get('/me', (req, res) => {
 
   } catch (error) {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Token inválido ou expirado' });
+      logger.warn('Tentativa de autenticação com token inválido', {
+        error: error.name,
+      });
+      return next(new AuthenticationError('Token inválido ou expirado'));
     }
     
-    console.error('[ERROR] /api/auth/me:', error);
-    res.status(500).json({ 
-      error: error.message || 'Erro ao validar token',
-      ...(process.env.DEBUG === 'true' && { stack: error.stack })
+    logger.error('Erro ao validar token', error, {
+      endpoint: '/api/auth/me',
     });
+    
+    next(error);
   }
 });
 
@@ -88,16 +103,18 @@ router.get('/callback', async (req, res) => {
 
     // Se houver erro no callback OAuth
     if (error) {
-      console.error('[AUTH] Erro no callback OAuth:', error);
-      return res.redirect(`http://localhost:5173/login?error=${encodeURIComponent(error)}`);
+      logger.warn('Erro no callback OAuth', { error });
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(error)}`);
     }
 
     // Se tiver código OAuth, processar autenticação Azure AD
     if (code) {
       // TODO: Implementar troca de código por token Azure AD
       // Por enquanto, redirecionar para login com erro
-      console.log('[AUTH] Código OAuth recebido (não implementado ainda):', code);
-      return res.redirect(`http://localhost:5173/login?error=${encodeURIComponent('Autenticação Azure AD ainda não implementada completamente')}`);
+      logger.info('Código OAuth recebido (funcionalidade ainda não implementada)');
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Autenticação Azure AD ainda não implementada completamente')}`);
     }
 
     // Modo desenvolvimento: gerar token diretamente
@@ -119,9 +136,13 @@ router.get('/callback', async (req, res) => {
     return res.redirect(`${frontendUrl}/auth/success?token=${encodeURIComponent(token)}`);
 
   } catch (error) {
-    console.error('[ERROR] /api/auth/callback:', error);
+    logger.error('Erro no callback de autenticação', error, {
+      endpoint: '/api/auth/callback',
+    });
+    
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(error.message || 'Erro ao processar autenticação')}`);
+    const errorMessage = error.message || 'Erro ao processar autenticação';
+    return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
   }
 });
 

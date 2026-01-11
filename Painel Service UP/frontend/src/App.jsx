@@ -24,6 +24,7 @@ import SlideSatisfacaoGrafico from './components/ServiceUp/slides/SlideSatisfaca
 import SlideCausaRaizMelhoriasSetembro from './components/ServiceUp/slides/SlideCausaRaizMelhoriasSetembro';
 import SlideCausaRaizMelhorias from './components/ServiceUp/slides/SlideCausaRaizMelhorias';
 import SlideCausaRaizMelhoriasNovembro from './components/ServiceUp/slides/SlideCausaRaizMelhoriasNovembro';
+import SlideCausaRaizMelhoriasDezembro from './components/ServiceUp/slides/SlideCausaRaizMelhoriasDezembro';
 import SlideDashboardChamados from './components/ServiceUp/slides/SlideDashboardChamados';
 
 // Array de slides - cada slide tem id, title, component, description, icon, size e color
@@ -156,6 +157,15 @@ const slides = [
   },
   {
     id: 15,
+    title: 'Soluções de Causa Raiz e Melhorias – Resolvido – Dezembro/2025',
+    component: <SlideCausaRaizMelhoriasDezembro />,
+    description: 'Soluções resolvidas',
+    icon: 'wrench',
+    size: 'large',
+    color: 'blue'
+  },
+  {
+    id: 16,
     title: 'Dashboard de Chamados',
     component: <SlideDashboardChamados />,
     description: 'Visão geral dos chamados',

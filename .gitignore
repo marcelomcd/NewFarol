@@ -33,6 +33,11 @@ yarn-error.log*
 *.swo
 *~
 
+# Cursor IDE
+.cursor/
+.cursorrules
+.cursorignore
+
 # OS
 .DS_Store
 Thumbs.db
@@ -56,3 +61,6 @@ coverage/
 
 # Old documentation (backup)
 READMEOLD.md
+
+# Git submodules (não ignorar - precisamos rastrear a referência)
+!.gitmodules
