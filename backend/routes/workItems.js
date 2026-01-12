@@ -19,6 +19,7 @@ import {
 } from '../utils/wiql.js';
 import { extractClientName } from '../utils/normalization.js';
 import { getUserClientFilter } from '../utils/auth.js';
+import { formatWorkItemFieldsFlat, filterRawFields } from '../utils/fieldFormatter.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -110,6 +111,11 @@ router.get('/bugs', async (req, res) => {
         continue;
       }
 
+      // Formatar campos brutos para campos legíveis
+      const formattedFields = formatWorkItemFieldsFlat(fields);
+      // Filtrar campos brutos removendo campos já formatados
+      const filteredRawFields = filterRawFields(fields);
+
       bugs.push({
         id: bug.id,
         title: fields['System.Title'] || '',
@@ -122,6 +128,8 @@ router.get('/bugs', async (req, res) => {
         repro_steps: fields['Microsoft.VSTS.TCM.ReproSteps'] || '',
         url: bug.url || '',
         web_url: bug._links?.html?.href || '',
+        fields_formatted: formattedFields,
+        raw_fields_json: filteredRawFields,
       });
     }
 
@@ -247,6 +255,11 @@ router.get('/tasks', async (req, res) => {
         }
       }
 
+      // Formatar campos brutos para campos legíveis
+      const formattedFields = formatWorkItemFieldsFlat(fields);
+      // Filtrar campos brutos removendo campos já formatados
+      const filteredRawFields = filterRawFields(fields);
+
       tasks.push({
         id: task.id,
         title: fields['System.Title'] || '',
@@ -262,6 +275,8 @@ router.get('/tasks', async (req, res) => {
         activity: fields['Microsoft.VSTS.Common.Activity'] || '',
         url: task.url || '',
         web_url: task._links?.html?.href || '',
+        fields_formatted: formattedFields,
+        raw_fields_json: filteredRawFields,
       });
     }
 
@@ -388,6 +403,11 @@ router.get('/user-stories', async (req, res) => {
         continue;
       }
 
+      // Formatar campos brutos para campos legíveis
+      const formattedFields = formatWorkItemFieldsFlat(fields);
+      // Filtrar campos brutos removendo campos já formatados
+      const filteredRawFields = filterRawFields(fields);
+
       userStories.push({
         id: us.id,
         title: fields['System.Title'] || '',
@@ -400,6 +420,8 @@ router.get('/user-stories', async (req, res) => {
         effort: fields['Microsoft.VSTS.Scheduling.Effort'] || null,
         url: us.url || '',
         web_url: us._links?.html?.href || '',
+        fields_formatted: formattedFields,
+        raw_fields_json: filteredRawFields,
       });
     }
 
@@ -503,6 +525,11 @@ router.get('/features/overdue', async (req, res) => {
       const assignedToField = fields['System.AssignedTo'];
       const assignedName = extractDisplayName(assignedToField);
 
+      // Formatar campos brutos para campos legíveis
+      const formattedFields = formatWorkItemFieldsFlat(fields);
+      // Filtrar campos brutos removendo campos já formatados
+      const filteredRawFields = filterRawFields(fields);
+
       features.push({
         id: feature.id,
         title: fields['System.Title'] || '',
@@ -520,7 +547,8 @@ router.get('/features/overdue', async (req, res) => {
         changed_date: fields['System.ChangedDate'] || '',
         url: feature.url || '',
         web_url: feature._links?.html?.href || '',
-        raw_fields_json: fields,
+        fields_formatted: formattedFields,
+        raw_fields_json: filteredRawFields,
       });
     }
 
@@ -571,6 +599,11 @@ router.get('/features/near-deadline', async (req, res) => {
       const assignedToField = fields['System.AssignedTo'];
       const assignedName = extractDisplayName(assignedToField);
 
+      // Formatar campos brutos para campos legíveis
+      const formattedFields = formatWorkItemFieldsFlat(fields);
+      // Filtrar campos brutos removendo campos já formatados
+      const filteredRawFields = filterRawFields(fields);
+
       features.push({
         id: feature.id,
         title: fields['System.Title'] || '',
@@ -586,7 +619,8 @@ router.get('/features/near-deadline', async (req, res) => {
         changed_date: fields['System.ChangedDate'] || '',
         url: feature.url || '',
         web_url: feature._links?.html?.href || '',
-        raw_fields_json: fields,
+        fields_formatted: formattedFields,
+        raw_fields_json: filteredRawFields,
       });
     }
 
@@ -633,6 +667,11 @@ router.get('/features/planning-overdue', async (req, res) => {
       const assignedToField = fields['System.AssignedTo'];
       const assignedName = extractDisplayName(assignedToField);
 
+      // Formatar campos brutos para campos legíveis
+      const formattedFields = formatWorkItemFieldsFlat(fields);
+      // Filtrar campos brutos removendo campos já formatados
+      const filteredRawFields = filterRawFields(fields);
+
       features.push({
         id: feature.id,
         title: fields['System.Title'] || '',
@@ -642,7 +681,8 @@ router.get('/features/planning-overdue', async (req, res) => {
         tags: fields['System.Tags'] ? fields['System.Tags'].split(';').filter(t => t.trim()) : [],
         url: feature.url || '',
         web_url: feature._links?.html?.href || '',
-        raw_fields_json: fields,
+        fields_formatted: formattedFields,
+        raw_fields_json: filteredRawFields,
       });
     }
 
@@ -690,6 +730,11 @@ router.get('/features/hours-alerts', async (req, res) => {
       const statusHoras = fields['Custom.StatusHoras'] || '';
 
       if (statusHoras === 'Com Alerta') {
+        // Formatar campos brutos para campos legíveis
+        const formattedFields = formatWorkItemFieldsFlat(fields);
+        // Filtrar campos brutos removendo campos já formatados
+        const filteredRawFields = filterRawFields(fields);
+
         features.push({
           id: feature.id,
           title: fields['System.Title'] || '',
@@ -698,7 +743,8 @@ router.get('/features/hours-alerts', async (req, res) => {
           saldo_horas: fields['Custom.SaldoHoras'] || null,
           horas_consumidas_real: fields['Custom.HorasConsumidasReal'] || null,
           horas_projeto: fields['Custom.HorasProjeto'] || null,
-          raw_fields_json: fields,
+          fields_formatted: formattedFields,
+          raw_fields_json: filteredRawFields,
         });
       }
     }
@@ -743,6 +789,11 @@ router.get('/features/estourados', async (req, res) => {
     const features = [];
     for (const feature of filteredFeatures) {
       const fields = feature.fields || {};
+      // Formatar campos brutos para campos legíveis
+      const formattedFields = formatWorkItemFieldsFlat(fields);
+      // Filtrar campos brutos removendo campos já formatados
+      const filteredRawFields = filterRawFields(fields);
+
       features.push({
         id: feature.id,
         title: fields['System.Title'] || '',
@@ -753,7 +804,8 @@ router.get('/features/estourados', async (req, res) => {
         horas_projeto: fields['Custom.HorasProjeto'] || null,
         motivo_estouro_projeto: fields['Custom.MotivoEstouroProjeto'] || '',
         board_column: fields['System.BoardColumn'] || '',
-        raw_fields_json: fields,
+        fields_formatted: formattedFields,
+        raw_fields_json: filteredRawFields,
       });
     }
 

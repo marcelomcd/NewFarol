@@ -1,25 +1,22 @@
 {
-  "name": "serviceup-backend",
+  "name": "painel-service-up-backend",
   "version": "1.0.0",
-  "description": "Backend Node.js/Express para Painel Service UP",
-  "type": "module",
+  "description": "Backend API para Painel Service Up",
   "main": "server.js",
+  "type": "module",
   "scripts": {
-    "dev": "node --watch server.js",
     "start": "node server.js",
+    "dev": "node --watch server.js",
     "check-tables": "node scripts/check-tables.js"
   },
-  "keywords": [
-    "serviceup",
-    "chamados",
-    "api"
-  ],
-  "author": "Davi Silva",
+  "keywords": [],
+  "author": "",
   "license": "ISC",
   "dependencies": {
     "express": "^4.18.2",
+    "mysql2": "^3.6.5",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "mysql2": "^3.6.5"
+    "dotenv": "^16.3.1"
   }
 }
+

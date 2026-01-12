@@ -1,54 +1,48 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-// Obter o diretório atual do módulo (ES modules)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+dotenv.config();
 
-// Carregar variáveis de ambiente do arquivo .env no diretório do backend
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-
-let pool = null;
-
-export function createConnection() {
-  if (pool) {
-    return pool;
-  }
-
-  const config = {
-    host: process.env.DB_HOST || '179.191.91.6',
-    port: parseInt(process.env.DB_PORT) || 3306,
-    user: process.env.DB_USER || 'Combio.biomassa',
+// Configuração de conexão MySQL
+const dbConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 3306,
+    user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'dw_combio',
+    database: 'dw_combio', // Database fixo conforme GRANT
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 0,
-  };
+    queueLimit: 0
+};
 
-  pool = mysql.createPool(config);
+// Criar pool de conexões
+let pool = null;
 
-  pool.getConnection()
-    .then((connection) => {
-      console.log('✅ Conectado ao banco de dados MySQL');
-      connection.release();
-    })
-    .catch((err) => {
-      console.error('❌ Erro ao conectar ao banco de dados:', err.message);
-    });
+export const createConnection = () => {
+    if (!pool) {
+        pool = mysql.createPool(dbConfig);
+        console.log('✅ Pool de conexões MySQL criado');
+    }
+    return pool;
+};
 
-  return pool;
-}
+export const getConnection = () => {
+    if (!pool) {
+        createConnection();
+    }
+    return pool;
+};
 
-export function getConnection() {
-  if (!pool) {
-    createConnection();
-  }
-  return pool;
-}
+// Função para testar conexão
+export const testConnection = async () => {
+    try {
+        const connection = getConnection();
+        const [rows] = await connection.query('SELECT 1 as test');
+        console.log('✅ Conexão MySQL testada com sucesso');
+        return true;
+    } catch (error) {
+        console.error('❌ Erro ao conectar ao MySQL:', error.message);
+        return false;
+    }
+};
 
-export default getConnection;

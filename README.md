@@ -1770,8 +1770,8 @@ Para suporte, dúvidas ou problemas:
 
 <div align="center">
 
-**Última atualização**: 19/12/2025  
-**Versão**: 2.0.0  
+**Última atualização**: 11/01/2026
+**Versão**: 2.2.0
 **Backend**: Node.js/Express  
 **Frontend**: React/TypeScript  
 **Desenvolvido por**: Marcelo Macedo  

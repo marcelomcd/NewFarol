@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import { featuresApi, FeatureDetail, RelationsResponse } from '../services/api'
@@ -81,6 +81,10 @@ export default function FeatureDetails() {
     enabled: !!id,
   })
 
+  // Estado para controlar aba ativa (Detalhes ou Checklist)
+  // IMPORTANTE: Hooks devem sempre ser chamados antes de qualquer retorno condicional
+  const [activeTab, setActiveTab] = useState<'detalhes' | 'checklist'>('detalhes')
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -137,8 +141,20 @@ export default function FeatureDetails() {
     ? feature.client 
     : (feature.area_path ? extractClientFromAreaPath(feature.area_path) : null)
 
-  // Organizar campos usando normalização
+  // Usar campos formatados do backend se disponível, senão usar normalização local
+  const formattedFields = feature.fields_formatted || {}
+  const formattedFieldsByCategory = feature.fields_formatted_by_category || {}
+  const checklistByTransition = feature.checklist_by_transition || {}
+  const hasFormattedFields = Object.keys(formattedFields).length > 0
+
+  // Organizar campos usando normalização (fallback quando não há campos formatados)
   const { statusReport, customFields, systemFields, allFields } = organizeFields(fields)
+  
+  // Para campos destacados, preferir campos formatados
+  const allFieldsFormatted = hasFormattedFields ? formattedFields : allFields
+  const customFieldsFormatted = hasFormattedFields 
+    ? formattedFieldsByCategory.customizados || {}
+    : customFields
   
   // Separar objetivo dos outros campos do Status Report
   const objetivo = statusReport['Objetivo'] || statusReport['objetivo'] || fields['Custom.Objetivo']
@@ -165,21 +181,25 @@ export default function FeatureDetails() {
     (item: any) => item.work_item_type?.toLowerCase() === 'task'
   ).length || 0
 
-  // Extrair campos destacados
-  const numeroProposta = allFields['N° Proposta'] || customFields['N° Proposta'] || fields['Custom.NumeroProposta']
-  const responsavelTecnico = allFields['Responsável Técnico'] || customFields['Responsável Técnico'] || extractDisplayName(fields['Custom.ResponsavelTecnico'])
-  const horasProjeto = allFields['Horas do Projeto'] || customFields['Horas do Projeto'] || fields['Custom.HorasVendidas']
-  const dataFim = allFields['Data Fim'] || customFields['Data Fim'] || formatDate(feature.target_date) || formatDate(fields['Microsoft.VSTS.Scheduling.TargetDate'])
+  // Extrair campos destacados (preferir campos formatados)
+  const numeroProposta = allFieldsFormatted['Número da Proposta Comercial'] || allFieldsFormatted['N° Proposta'] || customFieldsFormatted['N° Proposta'] || fields['Custom.NumeroProposta']
+  const responsavelTecnico = allFieldsFormatted['Responsável Técnico'] || customFieldsFormatted['Responsável Técnico'] || extractDisplayName(fields['Custom.ResponsavelTecnico'])
+  const horasProjeto = allFieldsFormatted['Horas Vendidas ao Cliente'] || allFieldsFormatted['Horas do Projeto'] || customFieldsFormatted['Horas do Projeto'] || fields['Custom.HorasVendidas']
+  const dataFim = allFieldsFormatted['Data de Entrega Planejada'] || allFieldsFormatted['Data Fim'] || customFieldsFormatted['Data Fim'] || formatDate(feature.target_date) || formatDate(fields['Microsoft.VSTS.Scheduling.TargetDate'])
   // Usar System.CreatedBy ao invés de System.ActivatedBy para "Criado Por"
-  const criadoPor = extractDisplayName(fields['System.CreatedBy']) || allFields['Criado Por'] || customFields['Criado Por']
-  // Normalizar Criticidade (remove prefixo numérico: "1- Baixo" -> "Baixo")
-  const criticidadeRaw = allFields['Criticidade'] || customFields['Criticidade'] || fields['Custom.Criticidade']
-  const criticidade = criticidadeRaw ? normalizeFieldValue('Criticidade', criticidadeRaw) : null
+  const criadoPor = extractDisplayName(fields['System.CreatedBy']) || allFieldsFormatted['Criado por'] || allFieldsFormatted['Criado Por'] || customFieldsFormatted['Criado Por']
+  // Criticidade (já formatado se houver campos formatados)
+  const criticidade = allFieldsFormatted['Criticidade do Projeto'] || customFieldsFormatted['Criticidade'] || (() => {
+    const criticidadeRaw = fields['Custom.Criticidade']
+    return criticidadeRaw ? normalizeFieldValue('Criticidade', criticidadeRaw) : null
+  })()
   
-  // Normalizar Pendências (remove prefixo numérico: "0-Sem Pendencia" -> "Não")
-  const pendenciasRaw = allFields['Pendências'] || customFields['Pendências'] || fields['Custom.SituacaoPendenteList']
-  const pendencias = pendenciasRaw ? normalizeFieldValue('Pendências', pendenciasRaw) : null
-  const dataHomologacaoRaw = allFields['Data Liberada para Homologação'] || customFields['Data Liberada para Homologação'] || fields['Custom.DataLiberadaHomologacao']
+  // Pendências (já formatado se houver campos formatados)
+  const pendencias = allFieldsFormatted['Situação de Pendências'] || customFieldsFormatted['Pendências'] || (() => {
+    const pendenciasRaw = fields['Custom.SituacaoPendenteList']
+    return pendenciasRaw ? normalizeFieldValue('Pendências', pendenciasRaw) : null
+  })()
+  const dataHomologacaoRaw = allFieldsFormatted['Data Liberada para Homologação'] || allFields['Data Liberada para Homologação'] || customFields['Data Liberada para Homologação'] || fields['Custom.DataLiberadaHomologacao']
   const dataHomologacao = dataHomologacaoRaw ? formatDate(dataHomologacaoRaw) : null
 
   // % de entrega (Custom.PorcentagemEntrega) - aba Status Report
@@ -366,11 +386,14 @@ export default function FeatureDetails() {
         </div>
       )}
 
-      {/* Informações Gerais do Projeto */}
+      {/* Informações Gerais do Projeto - Card com Abas */}
       {(() => {
+        // Usar campos formatados se disponível
+        const camposParaUsar = hasFormattedFields ? customFieldsFormatted : customFields;
+        
         // Separar campos prioritários dos demais
         // Excluir Descrição de QA pois já está em card separado
-        const camposFiltrados = Object.entries(customFields).filter(([label]) => 
+        const camposFiltrados = Object.entries(camposParaUsar).filter(([label]) =>
           label.toLowerCase() !== 'descrição de qa' && 
           label.toLowerCase() !== 'descricao de qa'
         )
@@ -386,29 +409,121 @@ export default function FeatureDetails() {
           )
         ).sort(([a], [b]) => a.localeCompare(b))
 
-        if (camposFiltrados.length === 0) return null
+        if (camposFiltrados.length === 0 && Object.keys(checklistByTransition).length === 0) return null
 
         return (
           <div className="glass dark:glass-dark p-6 rounded-lg">
-            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2">
-              <span>📋</span>
-              <span>Informações Gerais do Projeto</span>
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[...camposPrioritarios, ...camposRestantes].map(([label, value]) => (
-                <div key={label} className="border-b border-gray-200 dark:border-gray-700 pb-3">
-                  <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    • {label}:
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap leading-relaxed">
-                    {typeof value === 'string' && (value.includes('<') || value.includes('>')) 
-                      ? htmlToJsx(value) 
-                      : String(value)}
-                  </div>
-                </div>
-              ))}
+            {/* Cabeçalho e Abas */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <span>📋</span>
+                <span>Informações Gerais do Projeto</span>
+              </h2>
             </div>
+
+            {/* Navegação de Abas */}
+            <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
+              <button
+                className={`px-4 py-2 text-lg font-medium transition-colors ${
+                  activeTab === 'detalhes'
+                    ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+                }`}
+                onClick={() => setActiveTab('detalhes')}
+              >
+                Detalhes
+              </button>
+              <button
+                className={`px-4 py-2 text-lg font-medium transition-colors ${
+                  activeTab === 'checklist'
+                    ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+                }`}
+                onClick={() => setActiveTab('checklist')}
+              >
+                Checklist ({Object.keys(checklistByTransition).length})
+              </button>
+            </div>
+
+            {/* Conteúdo da Aba Detalhes */}
+            {activeTab === 'detalhes' && (
+              <div className="space-y-6">
+                {/* Campos Prioritários e Restantes */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[...camposPrioritarios, ...camposRestantes].map(([label, value]) => (
+                    <div key={label} className="border-b border-gray-200 dark:border-gray-700 pb-3">
+                      <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        • {label}:
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap leading-relaxed">
+                        {typeof value === 'string' && (value.includes('<') || value.includes('>')) 
+                          ? htmlToJsx(value) 
+                          : String(value)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Todos os Campos Normalizados */}
+                {hasFormattedFields && Object.keys(formattedFields).length > 0 && (
+                  <div className="mt-6">
+                    <details className="cursor-pointer">
+                      <summary className="text-lg font-bold text-gray-800 dark:text-white mb-4 list-none flex items-center gap-2">
+                        <span>🔍</span>
+                        <span>Todos os Campos Normalizados ({Object.keys(formattedFields).length})</span>
+                      </summary>
+                      <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
+                        {Object.entries(formattedFields)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([label, value]) => (
+                            <div key={label} className="border-b border-gray-200 dark:border-gray-700 pb-3">
+                              <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{label}</div>
+                              <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap leading-relaxed">
+                                {value === null || value === undefined ? '-' : String(value)}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </details>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Conteúdo da Aba Checklist */}
+            {activeTab === 'checklist' && (
+              <div className="space-y-6">
+                {Object.keys(checklistByTransition).length > 0 ? (
+                  Object.entries(checklistByTransition).map(([transition, items]) => (
+                    <div key={transition} className="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-b-0">
+                      <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                        <span>➡️</span>
+                        <span>{transition}</span>
+                      </h3>
+                      <ul className="space-y-2">
+                        {items.map((item, idx) => {
+                          const isSim = item.value === 'Sim';
+                          const isNao = item.value === 'Não';
+                          const isBranco = !item.value || item.value === null || item.value === undefined || item.value === '';
+                          const icon = isSim ? '✅' : isNao ? '❌' : '⬜';
+                          
+                          return (
+                            <li key={idx} className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                              <span className="text-blue-500">{icon}</span>
+                              <span>{item.label}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    Nenhum item de checklist encontrado para este projeto.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )
       })()}
@@ -441,65 +556,6 @@ export default function FeatureDetails() {
       )}
 
 
-      {/* Todos os Campos (Colapsável) - Normalizados */}
-      <div className="glass dark:glass-dark p-6 rounded-lg">
-        <details className="cursor-pointer">
-          <summary className="text-xl font-bold text-gray-800 dark:text-white mb-4 list-none flex items-center gap-2">
-            <span>🔍</span>
-            <span>Todos os Campos Normalizados ({Object.keys(allFields).length})</span>
-          </summary>
-          <div className="mt-4 space-y-4">
-            {/* Campos System */}
-            {Object.keys(systemFields).length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Campos do Sistema</h3>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {Object.entries(systemFields)
-                    .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([label, value]) => (
-                      <div key={label} className="border-b border-gray-200 dark:border-gray-700 pb-2">
-                        <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">{label}</div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
-                          {typeof value === 'string' && (value.includes('<') || value.includes('>')) 
-                            ? htmlToJsx(value) 
-                            : String(value)}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-            
-            {/* Campos Custom */}
-            {Object.keys(customFields).length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Campos Customizados</h3>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {Object.entries(customFields)
-                    .sort(([a], [b]) => {
-                      // Campos prioritários primeiro
-                      const aPriority = ORDEM_PRIORITARIA.some(p => a.toLowerCase().includes(p.toLowerCase()))
-                      const bPriority = ORDEM_PRIORITARIA.some(p => b.toLowerCase().includes(p.toLowerCase()))
-                      if (aPriority && !bPriority) return -1
-                      if (!aPriority && bPriority) return 1
-                      return a.localeCompare(b)
-                    })
-                    .map(([label, value]) => (
-                      <div key={label} className="border-b border-gray-200 dark:border-gray-700 pb-2">
-                        <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">{label}</div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap leading-relaxed">
-                          {typeof value === 'string' && (value.includes('<') || value.includes('>')) 
-                            ? htmlToJsx(value) 
-                            : String(value)}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </details>
-      </div>
 
       {/* Campos Brutos (Colapsável) - Para debug */}
       <div className="glass dark:glass-dark p-6 rounded-lg">

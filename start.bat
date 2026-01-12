@@ -171,19 +171,19 @@ REM Aguardar um pouco para o backend iniciar
 timeout /t 3 /nobreak >nul
 
 echo [2/4] Iniciando Backend ServiceUp (Node.js/Express) na porta 3000...
-start "ServiceUp Backend" cmd /k "cd "Painel Service UP\backend" && npm run dev"
+start "ServiceUp Backend" cmd /k "cd /d "%~dp0Painel Service UP\backend" && npm run dev"
 
 REM Aguardar um pouco para o backend ServiceUp iniciar
 timeout /t 3 /nobreak >nul
 
 echo [3/4] Iniciando Frontend ServiceUp (React/JSX) na porta 5174...
-start "ServiceUp Frontend" cmd /k "cd "Painel Service UP\frontend" && npm run dev"
+start "ServiceUp Frontend" cmd /k "cd /d "%~dp0Painel Service UP\frontend" && npm run dev"
 
 REM Aguardar um pouco para o frontend ServiceUp iniciar
 timeout /t 2 /nobreak >nul
 
 echo [4/4] Iniciando Frontend New Farol (React/TypeScript) na porta 5173...
-start "NewFarol Frontend" cmd /k "cd frontend && npm run dev"
+start "NewFarol Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
 
 echo.
 echo ========================================

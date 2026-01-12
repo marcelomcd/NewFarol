@@ -8,6 +8,8 @@ import { WIQLClient } from '../utils/wiqlClient.js';
 import { getFeaturesQuery } from '../utils/wiql.js';
 import { extractClientName, extractPmoName, normalizeFarolStatus } from '../utils/normalization.js';
 import { getUserClientFilter } from '../utils/auth.js';
+import { formatWorkItemFieldsFlat, formatWorkItemFields, filterRawFields } from '../utils/fieldFormatter.js';
+import { organizeChecklistByTransition } from '../utils/checklistOrganizer.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -160,7 +162,7 @@ router.get('/', async (req, res) => {
         board_column: fields['System.BoardColumn'] || null,
         target_date: targetDate || null,
         start_date: fields['Microsoft.VSTS.Scheduling.StartDate'] || null,
-        raw_fields_json: fields // Todos os campos brutos
+        raw_fields_json: filterRawFields(fields) // Campos brutos filtrados (sem campos formatados)
       };
     });
 
@@ -278,6 +280,14 @@ router.get('/:id', async (req, res) => {
     const statusProjeto = fields['Custom.StatusProjeto'] || '';
     const farolStatus = normalizeFarolStatus(statusProjeto);
 
+    // Formatar campos brutos para campos legíveis
+    const formattedFields = formatWorkItemFieldsFlat(fields);
+    const formattedFieldsByCategory = formatWorkItemFields(fields);
+    // Filtrar campos brutos removendo campos já formatados
+    const filteredRawFields = filterRawFields(fields);
+    // Organizar checklist por transição de estado (usa formattedFields e fields originais)
+    const checklistByTransition = organizeChecklistByTransition(formattedFields, fields);
+
     const featureDetail = {
       id: item.id,
       project_id: fields['System.TeamProject'] || project,
@@ -300,7 +310,10 @@ router.get('/:id', async (req, res) => {
       target_date: fields['Microsoft.VSTS.Scheduling.TargetDate'] || null,
       start_date: fields['Microsoft.VSTS.Scheduling.StartDate'] || null,
       description: fields['System.Description'] || '',
-      raw_fields_json: fields
+      fields_formatted: formattedFields,
+      fields_formatted_by_category: formattedFieldsByCategory,
+      checklist_by_transition: checklistByTransition,
+      raw_fields_json: filteredRawFields
     };
 
     res.json(featureDetail);
@@ -317,6 +330,92 @@ router.get('/:id', async (req, res) => {
 
     res.status(500).json({ 
       error: error.message || 'Erro ao buscar feature',
+      ...(process.env.DEBUG === 'true' && { stack: error.stack })
+    });
+  }
+});
+
+/**
+ * GET /api/features/:id/fields
+ * Busca campos formatados de uma feature específica
+ */
+router.get('/:id/fields', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { token } = req.query;
+    const { category } = req.query; // Opcional: 'flat' ou 'category'
+    const featureId = parseInt(id);
+
+    if (isNaN(featureId)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const wiql = new WIQLClient();
+
+    // Buscar work item com todos os campos
+    const workItems = await wiql.getWorkItems([featureId]);
+
+    if (workItems.length === 0) {
+      return res.status(404).json({ error: 'Feature não encontrada' });
+    }
+
+    const item = workItems[0];
+    const fields = item.fields || {};
+
+    // Extrair cliente para verificação de acesso
+    let clientName = null;
+    if (fields['System.AreaPath']) {
+      clientName = extractClientName(
+        fields['System.AreaPath'],
+        fields['System.IterationPath']
+      );
+    }
+
+    // Verificar se o usuário tem acesso a esta feature
+    const userClient = getUserClientFilter(token);
+    if (userClient) {
+      if (!clientName || clientName.toLowerCase() !== userClient.toLowerCase()) {
+        return res.status(403).json({
+          error: 'Você não tem permissão para acessar esta feature. Apenas features do seu cliente estão disponíveis.'
+        });
+      }
+    }
+
+    // Formatar campos
+    const formattedFields = formatWorkItemFieldsFlat(fields);
+    const formattedFieldsByCategory = formatWorkItemFields(fields);
+
+    // Retornar formato solicitado
+    if (category === 'flat') {
+      res.json({
+        feature_id: featureId,
+        fields: formattedFields
+      });
+    } else if (category === 'category') {
+      res.json({
+        feature_id: featureId,
+        fields: formattedFieldsByCategory
+      });
+    } else {
+      // Por padrão, retorna ambos
+      res.json({
+        feature_id: featureId,
+        fields_flat: formattedFields,
+        fields_by_category: formattedFieldsByCategory
+      });
+    }
+
+  } catch (error) {
+    console.error(`[ERROR] /api/features/${req.params.id}/fields:`, error);
+    
+    if (error.message && (error.message.includes('429') || error.message.toLowerCase().includes('rate limit'))) {
+      return res.status(429).json({
+        error: 'Rate limit do Azure DevOps atingido. Tente novamente em alguns segundos.'
+      });
+    }
+
+    res.status(500).json({ 
+      error: error.message || 'Erro ao buscar campos formatados',
       ...(process.env.DEBUG === 'true' && { stack: error.stack })
     });
   }
@@ -635,7 +734,7 @@ router.get('/open/wiql', async (req, res) => {
         farol_status: normalizeFarolStatus(fields['Custom.StatusProjeto']),
         target_date: fields['Microsoft.VSTS.Scheduling.TargetDate'] || null,
         board_column: fields['System.BoardColumn'] || '',
-        raw_fields_json: fields,
+        raw_fields_json: filterRawFields(fields),
       };
     });
 
@@ -939,7 +1038,7 @@ router.get('/by-state/wiql', async (req, res) => {
       return {
         id: item.id,
         state,
-        raw_fields_json: fields,
+        raw_fields_json: filterRawFields(fields),
       };
     });
 

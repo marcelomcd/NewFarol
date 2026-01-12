@@ -77,6 +77,20 @@ export interface Feature {
 
 export interface FeatureDetail extends Feature {
   raw_fields_json: Record<string, any>
+  fields_formatted?: Record<string, any>  // Campos formatados (formato plano)
+  fields_formatted_by_category?: {
+    customizados: Record<string, any>
+    microsoft: Record<string, any>
+    planejamento: Record<string, any>
+    organizacao: Record<string, any>
+    responsaveis: Record<string, any>
+    identificacao: Record<string, any>
+    kanban: Record<string, any>
+  }
+  checklist_by_transition?: Record<string, Array<{
+    label: string
+    value: string | null
+  }>>
   iteration_path?: string
   description?: string
 }
@@ -220,6 +234,25 @@ export const featuresApi = {
 
   getLinks: async (id: number): Promise<{ feature_id: number; links: Link[] }> => {
     const response = await api.get(`/features/${id}/links`)
+    return response.data
+  },
+
+  getFields: async (id: number, category?: 'flat' | 'category'): Promise<{
+    feature_id: number
+    fields?: Record<string, any>
+    fields_flat?: Record<string, any>
+    fields_by_category?: {
+      customizados: Record<string, any>
+      microsoft: Record<string, any>
+      planejamento: Record<string, any>
+      organizacao: Record<string, any>
+      responsaveis: Record<string, any>
+      identificacao: Record<string, any>
+      kanban: Record<string, any>
+    }
+  }> => {
+    const params = category ? { category } : {}
+    const response = await api.get(`/features/${id}/fields`, { params })
     return response.data
   },
 }

@@ -136,9 +136,18 @@ export default function InteractiveDashboard() {
     : undefined
 
   // Fonte base do dashboard: preferir consolidado (WIQL->hidratação), fallback para DB (legado)
+  // Total de Projetos = Closed (316) + Em Aberto (147) = 463
   const baseItems = useMemo<Feature[]>(() => {
-    return (openFeaturesWiqlData?.items ?? featuresData?.items ?? []) as Feature[]
-  }, [featuresData, openFeaturesWiqlData])
+    const openItems = (openFeaturesWiqlData?.items ?? []) as Feature[]
+    const closedItems = (closedFeaturesWiqlData?.items ?? []) as Feature[]
+    // Combinar features abertas + fechadas para o Total de Projetos
+    const combinedItems = [...openItems, ...closedItems]
+    // Se não temos dados consolidados, usar fallback
+    if (combinedItems.length === 0) {
+      return (featuresData?.items ?? []) as Feature[]
+    }
+    return combinedItems
+  }, [featuresData, openFeaturesWiqlData, closedFeaturesWiqlData])
 
   // Normalizar nomes de cliente para comparação consistente (evita "QUALIIT" vs "Quali IT", caixa, acentos, etc.)
   const normalizeClientKey = (value?: string | null) => {
@@ -245,13 +254,31 @@ export default function InteractiveDashboard() {
   const hasFilters = !!(selectedFarol || selectedClient || selectedState || selectedPMO)
 
   // Cards principais
+  // Total de Projetos = Closed (316) + Em Aberto (147) = 463
   const totalProjects = useMemo(() => {
-    if (!hasFilters && countsWiqlData?.total !== undefined) return countsWiqlData.total
+    if (!hasFilters && countsWiqlData?.total !== undefined) {
+      // Se temos dados consolidados, verificar se o total inclui closed + open
+      const openCount = countsWiqlData.open ?? 0
+      const closedCount = closedFeaturesWiqlData?.count ?? 0
+      const expectedTotal = openCount + closedCount
+      // Usar o total consolidado se disponível, senão calcular
+      return countsWiqlData.total >= expectedTotal ? countsWiqlData.total : expectedTotal
+    }
+    // Com filtros ou sem dados consolidados, usar filteredItems (que já inclui closed + open)
     return filteredItems.length
-  }, [countsWiqlData, filteredItems.length, hasFilters])
+  }, [countsWiqlData, closedFeaturesWiqlData, filteredItems.length, hasFilters])
 
   const openCount = useMemo(() => {
-    if (!hasFilters && countsWiqlData?.open !== undefined) return countsWiqlData.open
+    // Quando há filtros, sempre usar filteredItems (já filtrado por cliente, estado, etc.)
+    if (hasFilters) {
+      return filteredItems.filter((item) => {
+        const state = normalizarStatus(item.state || '')
+        return state !== 'Encerrado' && state !== 'Closed'
+      }).length
+    }
+    // Sem filtros, usar dados consolidados do backend quando disponível
+    if (countsWiqlData?.open !== undefined) return countsWiqlData.open
+    // Fallback: calcular a partir de filteredItems
     return filteredItems.filter((item) => {
       const state = normalizarStatus(item.state || '')
       return state !== 'Encerrado' && state !== 'Closed'
@@ -762,7 +789,14 @@ export default function InteractiveDashboard() {
             <div
               className="glass dark:glass-dark p-8 rounded-lg hover-lift transition-all group cursor-pointer border-b-4 border-green-500/30 hover:border-green-500"
               onClick={() => {
-                const items = (openFeaturesWiqlData?.items || filteredItems) as Feature[]
+                // Quando há filtros, usar filteredItems (já filtrado por cliente, estado, etc.)
+                // e filtrar por status "Em Aberto" (excluir Encerrado/Closed)
+                const items = hasFilters
+                  ? (filteredItems.filter((item) => {
+                      const state = normalizarStatus(item.state || '')
+                      return state !== 'Encerrado' && state !== 'Closed'
+                    }) as Feature[])
+                  : ((openFeaturesWiqlData?.items || filteredItems) as Feature[])
                 openDrillDown('Projetos Em Aberto', items, 'Em Aberto')
               }}
             >

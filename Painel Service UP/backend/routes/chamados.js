@@ -643,6 +643,95 @@ router.get('/dashboard/em-andamento', async (req, res) => {
     }
 });
 
+// GET - TESTE: Debug aberto/fechado (endpoint temporário para análise)
+router.get('/aberto-fechado-debug', async (req, res) => {
+    try {
+        const connection = getConnection();
+        const { month, year, startDate, endDate } = req.query;
+
+        // Construir filtros
+        const dateFilterCreated = buildDateFilter(month, year, startDate, endDate, 'created');
+        const dateFilterClosed = buildDateFilter(month, year, startDate, endDate, 'closed');
+
+        // Query 1: Fechados por mês de fechamento
+        const queryFechados = `
+            SELECT 
+                DATE_FORMAT(closed, '%Y-%m') as mes,
+                COUNT(*) as total,
+                COUNT(CASE WHEN state_type = 'closed' THEN 1 END) as por_state_type,
+                COUNT(CASE WHEN state_name = 'Encerrado' THEN 1 END) as por_state_name,
+                COUNT(CASE WHEN state_type = 'closed' OR state_name = 'Encerrado' THEN 1 END) as combinado
+            FROM dw_combio.bi_chamados_service_up
+            WHERE ${dateFilterClosed}
+                AND closed IS NOT NULL
+            GROUP BY DATE_FORMAT(closed, '%Y-%m')
+            ORDER BY mes DESC
+        `;
+
+        // Query 2: Abertos por mês de criação
+        const queryAbertos = `
+            SELECT 
+                DATE_FORMAT(created, '%Y-%m') as mes,
+                COUNT(*) as total,
+                COUNT(CASE WHEN state_type != 'closed' AND state_name != 'Encerrado' THEN 1 END) as abertos
+            FROM dw_combio.bi_chamados_service_up
+            WHERE ${dateFilterCreated}
+                AND created IS NOT NULL
+                AND (state_type != 'closed' AND state_name != 'Encerrado')
+            GROUP BY DATE_FORMAT(created, '%Y-%m')
+            ORDER BY mes DESC
+        `;
+
+        // Query 3: Query atual (para comparação)
+        const queryAtual = `
+            SELECT 
+                DATE_FORMAT(created, '%Y-%m') as mes,
+                SUM(CASE WHEN state_type = 'closed' OR state_name = 'Encerrado' THEN 1 ELSE 0 END) as fechado,
+                SUM(CASE WHEN state_type != 'closed' AND state_name != 'Encerrado' THEN 1 ELSE 0 END) as aberto
+            FROM dw_combio.bi_chamados_service_up
+            WHERE ${dateFilterCreated}
+                AND created IS NOT NULL
+            GROUP BY DATE_FORMAT(created, '%Y-%m')
+            ORDER BY mes DESC
+        `;
+
+        // Query 4: Análise de valores de state
+        const queryStateAnalysis = `
+            SELECT 
+                state_type,
+                state_name,
+                COUNT(*) as quantidade,
+                COUNT(CASE WHEN closed IS NOT NULL THEN 1 END) as tem_closed,
+                COUNT(CASE WHEN closed IS NULL THEN 1 END) as sem_closed
+            FROM dw_combio.bi_chamados_service_up
+            WHERE ${dateFilterCreated}
+            GROUP BY state_type, state_name
+            ORDER BY quantidade DESC
+        `;
+
+        const [fechados] = await connection.query(queryFechados);
+        const [abertos] = await connection.query(queryAbertos);
+        const [atual] = await connection.query(queryAtual);
+        const [stateAnalysis] = await connection.query(queryStateAnalysis);
+
+        res.json({
+            fechados_por_mes_fechamento: fechados,
+            abertos_por_mes_criacao: abertos,
+            query_atual: atual,
+            analise_estados: stateAnalysis,
+            resumo: {
+                total_fechados_por_closed: fechados.reduce((sum, r) => sum + (Number(r.combinado) || 0), 0),
+                total_abertos_por_created: abertos.reduce((sum, r) => sum + (Number(r.abertos) || 0), 0),
+                total_fechados_query_atual: atual.reduce((sum, r) => sum + (Number(r.fechado) || 0), 0),
+                total_abertos_query_atual: atual.reduce((sum, r) => sum + (Number(r.aberto) || 0), 0)
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao buscar debug aberto/fechado:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // GET - Classificação por domínio
 router.get('/dominio', async (req, res) => {
     try {
@@ -1269,3 +1358,4 @@ router.get('/lista-analistas', async (req, res) => {
 });
 
 export default router;
+

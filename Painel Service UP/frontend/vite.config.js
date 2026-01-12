@@ -5,8 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5174, // Porta específica para o frontend ServiceUp standalone
-    host: true, // Permite acesso de outros dispositivos na rede
-    cors: true, // Habilita CORS para desenvolvimento
+    port: 5174,
   },
 })
+

@@ -37,15 +37,64 @@ export default function CompletedProjects() {
     refetchOnWindowFocus: false,
   })
 
-  const { data: pmoList } = useQuery({
-    queryKey: ['pmo-list'],
-    queryFn: () => filtersApi.getPmoList(),
-  })
 
-  const { data: responsibleList } = useQuery({
-    queryKey: ['responsible-list'],
-    queryFn: () => filtersApi.getResponsibleList(),
-  })
+  // Funções auxiliares para filtros (igual ao Dashboard)
+  const normalizeClientKey = (value?: string | null) => {
+    if (!value) return ''
+    return value
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '')
+      .trim()
+  }
+
+  const extractPMO = (item: Feature): string => {
+    // 1) campo normalizado
+    if (item.pmo && item.pmo.trim() !== '') return item.pmo.trim()
+
+    // 2) raw_fields_json custom PMO
+    const raw: any = (item as any).raw_fields_json
+    if (raw) {
+      const customPMO = raw['Custom.PMO'] || raw['Custom.Pmo']
+      if (customPMO) {
+        if (typeof customPMO === 'object' && customPMO.displayName && customPMO.displayName.trim() !== '') {
+          return customPMO.displayName.trim()
+        }
+        if (typeof customPMO === 'string' && customPMO.trim() !== '') return customPMO.trim()
+      }
+
+      // 3) fallback AssignedTo
+      const assignedTo = raw['System.AssignedTo']
+      if (assignedTo && typeof assignedTo === 'object' && assignedTo.displayName && assignedTo.displayName.trim() !== '') {
+        return assignedTo.displayName.trim()
+      }
+      if (typeof assignedTo === 'string' && assignedTo.trim() !== '') return assignedTo.trim()
+    }
+
+    // 4) fallback assigned_to (string)
+    const assigned = (item as any).assigned_to
+    if (assigned && typeof assigned === 'string' && assigned.trim() !== '') return assigned.trim()
+
+    return 'Não atribuído'
+  }
+
+  const extractResponsavelCliente = (item: Feature): string => {
+    // 0) campo já normalizado pelo backend
+    const direct = (item as any).responsible
+    if (direct && typeof direct === 'string' && direct.trim() !== '') return direct.trim()
+
+    const raw: any = (item as any).raw_fields_json
+    if (raw) {
+      const rc = raw['Custom.ResponsavelCliente']
+      if (rc) {
+        if (typeof rc === 'object' && rc.displayName && rc.displayName.trim() !== '') return rc.displayName.trim()
+        if (typeof rc === 'string' && rc.trim() !== '') return rc.trim()
+      }
+    }
+    return 'Não atribuído'
+  }
 
   // Filtrar projetos concluídos
   const completedProjects = useMemo(() => {
@@ -111,23 +160,35 @@ export default function CompletedProjects() {
       })
     }
 
-    // Filtro de Cliente
+    // Filtro de Cliente (usar normalizeClientKey para comparação consistente)
     if (clientFilter) {
-      filtered = filtered.filter((item) => item.client === clientFilter)
+      const key = normalizeClientKey(clientFilter)
+      filtered = filtered.filter((item) => normalizeClientKey(item.client) === key)
     }
 
-    // Filtro de PMO
+    // Filtro de PMO (usar extractPMO para extrair corretamente)
     if (pmoFilter) {
-      filtered = filtered.filter((item) => item.pmo === pmoFilter)
+      filtered = filtered.filter((item) => extractPMO(item) === pmoFilter)
     }
 
-    // Filtro de Responsável
+    // Filtro de Responsável (usar extractResponsavelCliente para extrair corretamente)
     if (responsibleFilter) {
-      filtered = filtered.filter((item) => item.responsible === responsibleFilter)
+      filtered = filtered.filter((item) => extractResponsavelCliente(item) === responsibleFilter)
     }
 
     return filtered
-  }, [completedProjects, searchTerm, statusFilter, clientFilter, pmoFilter, responsibleFilter])
+  }, [completedProjects, searchTerm, statusFilter, clientFilter, pmoFilter, responsibleFilter, normalizeClientKey, extractPMO, extractResponsavelCliente])
+
+  // Gerar listas de filtros dinamicamente dos dados (igual ao Dashboard)
+  const availablePMOs = useMemo(() => {
+    const pmos = new Set(completedProjects.map((item) => extractPMO(item)).filter(Boolean))
+    return Array.from(pmos).sort()
+  }, [completedProjects, extractPMO])
+
+  const availableResponsibles = useMemo(() => {
+    const responsibles = new Set(completedProjects.map((item) => extractResponsavelCliente(item)).filter(Boolean))
+    return Array.from(responsibles).sort()
+  }, [completedProjects, extractResponsavelCliente])
 
   // Ordenar
   const sortedProjects = useMemo(() => {
@@ -150,14 +211,38 @@ export default function CompletedProjects() {
         bValue = b[sortConfig.key as keyof Feature] || ''
       }
 
-      // Converter para string para comparação
-      const aStr = String(aValue).toLowerCase()
-      const bStr = String(bValue).toLowerCase()
+      // Verificar se são números
+      const aNum = typeof aValue === 'number' ? aValue : parseFloat(String(aValue))
+      const bNum = typeof bValue === 'number' ? bValue : parseFloat(String(bValue))
+      const isANum = !isNaN(aNum) && isFinite(aNum) && String(aValue).trim() !== ''
+      const isBNum = !isNaN(bNum) && isFinite(bNum) && String(bValue).trim() !== ''
+
+      // Se ambos são números, ordenar numericamente
+      if (isANum && isBNum) {
+        if (sortConfig.direction === 'asc') {
+          return aNum - bNum
+        } else {
+          return bNum - aNum
+        }
+      }
+
+      // Se um é número e outro não, números primeiro (em ordem crescente quando asc)
+      if (isANum && !isBNum) {
+        return sortConfig.direction === 'asc' ? -1 : 1
+      }
+      if (!isANum && isBNum) {
+        return sortConfig.direction === 'asc' ? 1 : -1
+      }
+
+      // Comparação alfabética (ignora maiúsculas/minúsculas e acentos)
+      const normalize = (str: string) => String(str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const aStr = normalize(String(aValue))
+      const bStr = normalize(String(bValue))
 
       if (sortConfig.direction === 'asc') {
-        return aStr > bStr ? 1 : -1
+        return aStr.localeCompare(bStr, 'pt-BR')
       } else {
-        return aStr < bStr ? 1 : -1
+        return bStr.localeCompare(aStr, 'pt-BR')
       }
     })
   }, [filteredProjects, sortConfig])
@@ -287,7 +372,7 @@ export default function CompletedProjects() {
               className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:text-white"
             >
               <option value="">Todos</option>
-              {pmoList?.pmo?.map((pmo) => (
+              {availablePMOs.map((pmo) => (
                 <option key={pmo} value={pmo}>
                   {pmo}
                 </option>
@@ -306,7 +391,7 @@ export default function CompletedProjects() {
               className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:text-white"
             >
               <option value="">Todos</option>
-              {responsibleList?.responsible?.map((responsible) => (
+              {availableResponsibles.map((responsible) => (
                 <option key={responsible} value={responsible}>
                   {responsible}
                 </option>

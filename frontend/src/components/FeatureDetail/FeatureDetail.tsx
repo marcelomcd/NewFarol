@@ -30,7 +30,12 @@ export default function FeatureDetail() {
     )
   }
 
-  const fields = Object.entries(data.raw_fields_json || {}).sort(([a], [b]) => a.localeCompare(b))
+  // Usar campos formatados se disponível, senão usar campos brutos como fallback
+  const formattedFields = data.fields_formatted || {}
+  const rawFields = data.raw_fields_json || {}
+  const fields = Object.keys(formattedFields).length > 0 
+    ? Object.entries(formattedFields).sort(([a], [b]) => a.localeCompare(b))
+    : Object.entries(rawFields).sort(([a], [b]) => a.localeCompare(b))
 
   return (
     <div className="space-y-4">
@@ -125,20 +130,56 @@ export default function FeatureDetail() {
         </div>
       </div>
 
-      {/* Todos os campos */}
-      <div className="glass dark:glass-dark p-6 rounded-lg">
-        <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Todos os Campos</h2>
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {fields.map(([key, value]) => (
-            <div key={key} className="border-b border-gray-200 dark:border-gray-700 pb-2">
-              <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">{key}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
-              </div>
-            </div>
-          ))}
+      {/* Campos Formatados */}
+      {Object.keys(formattedFields).length > 0 && (
+        <div className="glass dark:glass-dark p-6 rounded-lg">
+          <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">
+            Campos Formatados ({Object.keys(formattedFields).length})
+          </h2>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {Object.entries(formattedFields)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([key, value]) => (
+                <div key={key} className="border-b border-gray-200 dark:border-gray-700 pb-2">
+                  <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">{key}</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {value === null || value === undefined ? '-' : String(value)}
+                  </div>
+                </div>
+              ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Campos Brutos (Colapsável) - Para debug */}
+      {Object.keys(rawFields).length > 0 && (
+        <div className="glass dark:glass-dark p-6 rounded-lg">
+          <details className="cursor-pointer">
+            <summary className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4 list-none flex items-center gap-2">
+              <span>🔧</span>
+              <span>Campos Brutos do Azure DevOps ({Object.keys(rawFields).length})</span>
+            </summary>
+            <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
+              {Object.entries(rawFields)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([key, value]) => (
+                  <div key={key} className="border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <div className="text-xs font-mono text-gray-600 dark:text-gray-400">{key}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      {typeof value === 'object' ? (
+                        <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded mt-1 overflow-x-auto">
+                          {JSON.stringify(value, null, 2)}
+                        </pre>
+                      ) : (
+                        String(value)
+                      )}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </details>
+        </div>
+      )}
     </div>
   )
 }

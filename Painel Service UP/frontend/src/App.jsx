@@ -1,33 +1,44 @@
 import { useState } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useServiceUpDateFilter } from './hooks/useServiceUpDateFilter.js';
-import { DateFilterProvider } from './contexts/ServiceUpDateFilterContext.jsx';
-import { AnalistaFilterProvider, useAnalistaFilterContext } from './contexts/ServiceUpAnalistaFilterContext.jsx';
-import { AbaControlProvider } from './contexts/AbaControlContext.jsx';
-import QuickDateFilters from './components/ServiceUp/QuickDateFilters';
-import ServiceUpAnalistaFilter from './components/ServiceUp/ServiceUpAnalistaFilter';
-import DashboardCard from './components/ServiceUp/DashboardCard';
-import PresentationMode from './components/ServiceUp/PresentationMode';
+import { useDateFilter } from './hooks/useDateFilter';
+import { DateFilterProvider } from './contexts/DateFilterContext';
+import { AnalistaFilterProvider, useAnalistaFilterContext } from './contexts/AnalistaFilterContext';
+import { AbaControlProvider } from './contexts/AbaControlContext';
+import QuickDateFilters from './components/QuickDateFilters';
+import AnalistaFilter from './components/AnalistaFilter';
+import DashboardCard from './components/DashboardCard';
+import PresentationMode from './components/PresentationMode';
 
 // Importar todos os slides
-import SlideChamadosAtendidos from './components/ServiceUp/slides/SlideChamadosAtendidos';
-import SlideTop20Usuarios from './components/ServiceUp/slides/SlideTop20Usuarios';
-import SlideAbertoFechado from './components/ServiceUp/slides/SlideAbertoFechado';
-import SlideDominio from './components/ServiceUp/slides/SlideDominio';
-import SlideDatasul from './components/ServiceUp/slides/SlideDatasul';
-import SlideFluig from './components/ServiceUp/slides/SlideFluig';
-import SlideAnalistas from './components/ServiceUp/slides/SlideAnalistas';
-import SlideSLA from './components/ServiceUp/slides/SlideSLA';
-import SlideSLAAnalista from './components/ServiceUp/slides/SlideSLAAnalista';
-import SlideSatisfacaoTabela from './components/ServiceUp/slides/SlideSatisfacaoTabela';
-import SlideSatisfacaoGrafico from './components/ServiceUp/slides/SlideSatisfacaoGrafico';
-import SlideCausaRaizMelhoriasSetembro from './components/ServiceUp/slides/SlideCausaRaizMelhoriasSetembro';
-import SlideCausaRaizMelhorias from './components/ServiceUp/slides/SlideCausaRaizMelhorias';
-import SlideCausaRaizMelhoriasNovembro from './components/ServiceUp/slides/SlideCausaRaizMelhoriasNovembro';
-import SlideCausaRaizMelhoriasDezembro from './components/ServiceUp/slides/SlideCausaRaizMelhoriasDezembro';
-import SlideDashboardChamados from './components/ServiceUp/slides/SlideDashboardChamados';
+import SlideChamadosAtendidos from './components/slides/SlideChamadosAtendidos';
+import SlideTop20Usuarios from './components/slides/SlideTop20Usuarios';
+import SlideAbertoFechado from './components/slides/SlideAbertoFechado';
+import SlideDominio from './components/slides/SlideDominio';
+import SlideDatasul from './components/slides/SlideDatasul';
+import SlideFluig from './components/slides/SlideFluig';
+import SlideAnalistas from './components/slides/SlideAnalistas';
+import SlideSLA from './components/slides/SlideSLA';
+import SlideSLAAnalista from './components/slides/SlideSLAAnalista';
+import SlideSatisfacaoTabela from './components/slides/SlideSatisfacaoTabela';
+import SlideSatisfacaoGrafico from './components/slides/SlideSatisfacaoGrafico';
+import SlideCausaRaizMelhorias from './components/slides/SlideCausaRaizMelhorias';
+import SlideCausaRaizMelhoriasNovembro from './components/slides/SlideCausaRaizMelhoriasNovembro';
+import SlideCausaRaizMelhoriasDezembro from './components/slides/SlideCausaRaizMelhoriasDezembro';
+import SlideDashboardChamados from './components/slides/SlideDashboardChamados';
 
-// Array de slides - cada slide tem id, title, component, description, icon, size e color
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      cacheTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      refetchOnReconnect: true,
+    },
+  },
+});
+
 const slides = [
   {
     id: 1,
@@ -35,7 +46,7 @@ const slides = [
     component: <SlideChamadosAtendidos />,
     description: 'Evolução mensal',
     icon: 'chart-line',
-    size: 'large',
+    size: 'large', // Grande
     color: 'purple'
   },
   {
@@ -44,7 +55,7 @@ const slides = [
     component: <SlideTop20Usuarios />,
     description: 'Usuários que mais abriram chamados',
     icon: 'users',
-    size: 'large',
+    size: 'large', // Grande
     color: 'green'
   },
   {
@@ -53,7 +64,7 @@ const slides = [
     component: <SlideAbertoFechado />,
     description: 'Status dos chamados',
     icon: 'balance-scale',
-    size: 'small',
+    size: 'small', // Pequeno
     color: 'blue'
   },
   {
@@ -62,7 +73,7 @@ const slides = [
     component: <SlideDominio />,
     description: 'Distribuição por área',
     icon: 'sitemap',
-    size: 'small',
+    size: 'small', // Pequeno
     color: 'green'
   },
   {
@@ -71,7 +82,7 @@ const slides = [
     component: <SlideDatasul />,
     description: 'Análise Datasul',
     icon: 'database',
-    size: 'large',
+    size: 'large', // Grande
     color: 'orange'
   },
   {
@@ -80,7 +91,7 @@ const slides = [
     component: <SlideFluig />,
     description: 'Análise Fluig',
     icon: 'cloud',
-    size: 'small',
+    size: 'small', // Pequeno
     color: 'teal'
   },
   {
@@ -89,7 +100,7 @@ const slides = [
     component: <SlideAnalistas />,
     description: 'Performance individual',
     icon: 'users',
-    size: 'large',
+    size: 'large', // Grande
     color: 'indigo'
   },
   {
@@ -98,7 +109,7 @@ const slides = [
     component: <SlideSLA />,
     description: 'Indicadores SLA',
     icon: 'clock',
-    size: 'large',
+    size: 'large', // Grande
     color: 'red'
   },
   {
@@ -107,7 +118,7 @@ const slides = [
     component: <SlideSLAAnalista />,
     description: 'SLA por analista',
     icon: 'user-clock',
-    size: 'large',
+    size: 'large', // Grande
     color: 'pink'
   },
   {
@@ -116,7 +127,7 @@ const slides = [
     component: <SlideSatisfacaoTabela />,
     description: 'Classificação',
     icon: 'star',
-    size: 'medium',
+    size: 'medium', // Médio
     color: 'yellow'
   },
   {
@@ -125,84 +136,58 @@ const slides = [
     component: <SlideSatisfacaoGrafico />,
     description: 'Por analista',
     icon: 'chart-bar',
-    size: 'medium',
+    size: 'medium', // Médio
     color: 'cyan'
   },
   {
     id: 12,
-    title: 'Soluções de Causa Raiz e Melhorias – Resolvido – Setembro/2025',
-    component: <SlideCausaRaizMelhoriasSetembro />,
-    description: 'Soluções resolvidas',
-    icon: 'wrench',
-    size: 'large',
-    color: 'blue'
-  },
-  {
-    id: 13,
     title: 'Soluções de Causa Raiz e Melhorias – Resolvido – Outubro/2025',
     component: <SlideCausaRaizMelhorias />,
     description: 'Soluções resolvidas',
     icon: 'wrench',
-    size: 'large',
+    size: 'large', // Grande
     color: 'blue'
   },
   {
-    id: 14,
+    id: 13,
     title: 'Soluções de Causa Raiz e Melhorias – Resolvido – Novembro/2025',
     component: <SlideCausaRaizMelhoriasNovembro />,
     description: 'Soluções resolvidas',
     icon: 'wrench',
-    size: 'large',
+    size: 'large', // Grande
     color: 'blue'
   },
   {
-    id: 15,
+    id: 14,
     title: 'Soluções de Causa Raiz e Melhorias – Resolvido – Dezembro/2025',
     component: <SlideCausaRaizMelhoriasDezembro />,
     description: 'Soluções resolvidas',
     icon: 'wrench',
-    size: 'large',
+    size: 'large', // Grande
     color: 'blue'
   },
   {
-    id: 16,
+    id: 15,
     title: 'Dashboard de Chamados',
     component: <SlideDashboardChamados />,
     description: 'Visão geral dos chamados',
     icon: 'dashboard',
-    size: 'large',
+    size: 'large', // Grande
     color: 'indigo'
   },
 ];
 
-const ServiceUpContent = () => {
-  const {
-    selectedMonth,
-    selectedYear,
-    setSelectedMonth,
-    setSelectedYear,
-    dateFilter,
-    months,
-    years,
-  } = useServiceUpDateFilter();
-
-  const { analistaFilter, analistasSelecionados, setAnalistaFilter, setAnalistasSelecionados } = useAnalistaFilterContext();
-
+function App() {
+  const { selectedMonth, selectedYear, setSelectedMonth, setSelectedYear, dateFilter, months, years } = useDateFilter();
   const [presentationMode, setPresentationMode] = useState(false);
   const [presentationIndex, setPresentationIndex] = useState(0);
 
   const handleClearFilters = () => {
     const now = new Date();
+    // Limpar mês (voltar para padrão: mês atual)
     setSelectedMonth(now.getMonth() + 1);
+    // Manter o ano atual (importante para Chamados Atendidos)
     setSelectedYear(now.getFullYear());
-  };
-
-  const handleClearAllFilters = () => {
-    const now = new Date();
-    setSelectedMonth(now.getMonth() + 1);
-    setSelectedYear(now.getFullYear());
-    setAnalistaFilter('todos');
-    setAnalistasSelecionados([]);
   };
 
   const openPresentation = () => {
@@ -211,6 +196,7 @@ const ServiceUpContent = () => {
   };
 
   const closePresentation = async () => {
+    // Sair do fullscreen ao fechar
     try {
       if (document.exitFullscreen) {
         await document.exitFullscreen();
@@ -234,103 +220,169 @@ const ServiceUpContent = () => {
   };
 
   const getGridCols = (size) => {
+    // Todos os cards ocupam toda a largura (uma coluna)
     return 'col-span-1';
+  };
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AnalistaFilterProvider>
+        <AppContent 
+          dateFilter={dateFilter}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+          setSelectedMonth={setSelectedMonth}
+          setSelectedYear={setSelectedYear}
+          months={months}
+          years={years}
+          handleClearFilters={handleClearFilters}
+          openPresentation={openPresentation}
+          presentationMode={presentationMode}
+          presentationIndex={presentationIndex}
+          closePresentation={closePresentation}
+          nextSlide={nextSlide}
+          previousSlide={previousSlide}
+          getGridCols={getGridCols}
+          slides={slides}
+        />
+      </AnalistaFilterProvider>
+    </QueryClientProvider>
+  );
+}
+
+function AppContent({
+  dateFilter,
+  selectedMonth,
+  selectedYear,
+  setSelectedMonth,
+  setSelectedYear,
+  months,
+  years,
+  handleClearFilters,
+  openPresentation,
+  presentationMode,
+  presentationIndex,
+  closePresentation,
+  nextSlide,
+  previousSlide,
+  getGridCols,
+  slides
+}) {
+  const { analistaFilter, analistasSelecionados, setAnalistaFilter, setAnalistasSelecionados } = useAnalistaFilterContext();
+
+  // Função para limpar todos os filtros (data e analista)
+  const handleClearAllFilters = () => {
+    const now = new Date();
+    setSelectedMonth(now.getMonth() + 1);
+    setSelectedYear(now.getFullYear());
+    setAnalistaFilter('todos');
+    setAnalistasSelecionados([]);
   };
 
   return (
     <DateFilterProvider
       month={dateFilter.month}
       year={dateFilter.year}
-      startDate={dateFilter.startDate}
-      endDate={dateFilter.endDate}
+      startDate={null}
+      endDate={null}
       analistaFilter={analistaFilter}
       analistasSelecionados={analistasSelecionados}
     >
       <AbaControlProvider>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          {/* Filtros no topo */}
-          <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-            <div className="max-w-[1600px] mx-auto">
-              <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Painel Service Up</h1>
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Filtro de Analista */}
-                <ServiceUpAnalistaFilter />
-                
-                {/* Filtros Rápidos */}
-                <QuickDateFilters
-                  selectedMonth={selectedMonth}
-                  selectedYear={selectedYear}
-                  months={months}
-                  years={years}
-                  onMonthChange={setSelectedMonth}
-                  onYearChange={setSelectedYear}
-                  onClear={handleClearAllFilters}
-                />
+          <div className="min-h-screen bg-gray-50">
+            {/* Header - Oculto no modo apresentação */}
+            {!presentationMode && (
+              <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-[9999]">
+                <div className="px-4 py-2 flex items-center gap-4">
+                  {/* Logo */}
+                  <img
+                    src="/qi_logo.png"
+                    alt="QualiIT"
+                    className="h-8 w-auto object-contain"
+                  />
 
-                {/* Botão de Apresentação */}
-                <button
-                  onClick={openPresentation}
-                  className="w-10 h-10 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-full hover:from-teal-700 hover:to-cyan-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center"
-                  title="Modo Apresentação"
-                >
-                  <i className="fas fa-tv text-sm"></i>
-                </button>
-              </div>
-            </div>
-          </div>
+                  {/* Divisor */}
+                  <div className="h-6 w-px bg-gray-300"></div>
 
-          {/* Main Content */}
-          <main className="overflow-auto bg-gray-50 dark:bg-gray-900">
-            {/* Dashboard Grid */}
-            <div className="p-8">
-              <div className="grid grid-cols-1 gap-12 max-w-[1600px] mx-auto">
-                {slides.map((slide, index) => (
-                  <motion.div
-                    key={slide.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className={getGridCols(slide.size)}
-                  >
-                    <DashboardCard
-                      title={slide.title}
-                      description={slide.description}
-                      icon={slide.icon}
-                      color={slide.color}
-                      size={slide.size}
+                  {/* Título */}
+                  <h1 className="text-lg font-bold text-gray-800 flex-1">Painel Service Up</h1>
+
+                  {/* Filtros Rápidos e Botões */}
+                  <div className="flex items-center gap-3">
+                    {/* Filtro de Analista */}
+                    <AnalistaFilter />
+                    
+                    {/* Filtros Rápidos */}
+                    <QuickDateFilters
+                      selectedMonth={selectedMonth}
+                      selectedYear={selectedYear}
+                      months={months}
+                      years={years}
+                      onMonthChange={setSelectedMonth}
+                      onYearChange={setSelectedYear}
+                      onClear={handleClearAllFilters}
+                    />
+
+                    {/* Botão de Apresentação */}
+                    <button
+                      onClick={openPresentation}
+                      className="w-10 h-10 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-full hover:from-teal-700 hover:to-cyan-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center"
+                      title="Modo Apresentação"
                     >
-                      {slide.component}
-                    </DashboardCard>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </main>
-
-          {/* Presentation Mode */}
-          <AnimatePresence>
-            {presentationMode && (
-              <PresentationMode
-                slides={slides}
-                currentIndex={presentationIndex}
-                onClose={closePresentation}
-                onNext={nextSlide}
-                onPrevious={previousSlide}
-              />
+                      <i className="fas fa-desktop text-sm"></i>
+                    </button>
+                  </div>
+                </div>
+              </header>
             )}
-          </AnimatePresence>
-        </div>
-      </AbaControlProvider>
-    </DateFilterProvider>
-  );
-};
 
-const App = () => {
-  return (
-    <AnalistaFilterProvider>
-      <ServiceUpContent />
-    </AnalistaFilterProvider>
+            {/* Main Content - Oculto no modo apresentação */}
+            {!presentationMode && (
+              <main className="overflow-auto bg-gray-50">
+
+                {/* Dashboard Grid */}
+                <div className="p-8">
+                  <div className="grid grid-cols-1 gap-12 max-w-[1600px] mx-auto">
+                    {slides.map((slide, index) => (
+                      <motion.div
+                        key={slide.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={getGridCols(slide.size)}
+                      >
+                        <DashboardCard
+                          title={slide.title}
+                          description={slide.description}
+                          icon={slide.icon}
+                          color={slide.color}
+                          size={slide.size}
+                        >
+                          {slide.component}
+                        </DashboardCard>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </main>
+            )}
+
+            {/* Presentation Mode */}
+            <AnimatePresence>
+              {presentationMode && (
+                <PresentationMode
+                  slides={slides}
+                  currentIndex={presentationIndex}
+                  onClose={closePresentation}
+                  onNext={nextSlide}
+                  onPrevious={previousSlide}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+        </AbaControlProvider>
+      </DateFilterProvider>
   );
-};
+}
 
 export default App;
