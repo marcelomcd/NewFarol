@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAnalistaFilterContext } from '../contexts/AnalistaFilterContext';
+import { useAnalistaFilterContext } from '../../contexts/AnalistaFilterContext';
 
 const AnalistaFilter = () => {
     const {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAbaControl } from '../../contexts/AbaControlContext';
+import { useAbaControl } from '../../../contexts/AbaControlContext';
 
 const SlideCausaRaizMelhoriasNovembro = () => {
     const [dados, setDados] = useState([]);

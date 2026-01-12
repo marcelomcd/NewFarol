@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect } from 'react';
-import { useAbaControl } from '../contexts/AbaControlContext';
+import { useAbaControl } from '../../contexts/AbaControlContext';
 
 const PresentationMode = ({ slides, currentIndex, onClose, onNext, onPrevious }) => {
     const { abaAtiva, setAbaAtiva, hasAbaControl } = useAbaControl();
