@@ -62,32 +62,58 @@ router.get('/me', (req, res, next) => {
 });
 
 /**
+ * Valida e retorna a URL do frontend para redirect.
+ * Aceita return_origin apenas se for localhost (qualquer porta) ou mesma origem permitida.
+ */
+function getFrontendRedirectUrl(req, fallback) {
+  const fallbackUrl = fallback || process.env.FRONTEND_URL || 'http://localhost:5173';
+  const returnOrigin = req.query?.return_origin;
+  if (!returnOrigin || typeof returnOrigin !== 'string') return fallbackUrl;
+  try {
+    const url = new URL(returnOrigin);
+    // Permitir apenas localhost em desenvolvimento (qualquer porta)
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return returnOrigin.replace(/\/$/, '');
+    // Em produção, poderia validar contra lista de origens permitidas
+    return fallbackUrl;
+  } catch {
+    return fallbackUrl;
+  }
+}
+
+/**
  * GET /api/auth/login
  * Inicia processo de autenticação OAuth
  * Redireciona para Azure AD ou gera token de desenvolvimento
+ * Aceita return_origin para redirecionar de volta à mesma origem (ex.: 5174).
  */
 router.get('/login', (req, res) => {
   const tenantId = process.env.AZURE_AD_TENANT_ID;
   const clientId = process.env.AZURE_AD_CLIENT_ID;
   const redirectUri = process.env.AZURE_AD_REDIRECT_URI || 'http://localhost:8000/api/auth/callback';
   const isPublicClient = process.env.AZURE_AD_IS_PUBLIC_CLIENT === 'true';
+  const returnOrigin = (req.query?.return_origin && typeof req.query.return_origin === 'string')
+    ? req.query.return_origin
+    : '';
 
   // Se Azure AD estiver configurado, redirecionar para OAuth
   if (tenantId && clientId && !isPublicClient) {
+    const state = returnOrigin ? `login:${encodeURIComponent(returnOrigin)}` : 'login';
     const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?` +
       `client_id=${clientId}&` +
       `response_type=code&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `response_mode=query&` +
       `scope=openid profile email&` +
-      `state=login`;
+      `state=${encodeURIComponent(state)}`;
     
     return res.redirect(authUrl);
   }
 
   // Se for cliente público ou não configurado, redirecionar para callback de desenvolvimento
-  // Isso permite login de desenvolvimento sem Azure AD
-  return res.redirect('/api/auth/callback');
+  const callbackUrl = returnOrigin
+    ? `/api/auth/callback?return_origin=${encodeURIComponent(returnOrigin)}`
+    : '/api/auth/callback';
+  return res.redirect(callbackUrl);
 });
 
 /**
@@ -101,24 +127,31 @@ router.get('/callback', async (req, res) => {
     const error = req.query.error;
     const state = req.query.state;
 
+    // Origem do frontend: return_origin (query), state OAuth (formato "login:url") ou fallback
+    const defaultFrontend = process.env.FRONTEND_URL || 'http://localhost:5173';
+    let frontendUrl = getFrontendRedirectUrl(req, defaultFrontend);
+    if (frontendUrl === defaultFrontend && state && typeof state === 'string' && state.startsWith('login:')) {
+      try {
+        const decoded = decodeURIComponent(state.slice(6));
+        const url = new URL(decoded);
+        if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') frontendUrl = decoded.replace(/\/$/, '');
+      } catch (_) { /* ignore */ }
+    }
+
     // Se houver erro no callback OAuth
     if (error) {
       logger.warn('Erro no callback OAuth', { error });
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(error)}`);
     }
 
     // Se tiver código OAuth, processar autenticação Azure AD
     if (code) {
       // TODO: Implementar troca de código por token Azure AD
-      // Por enquanto, redirecionar para login com erro
       logger.info('Código OAuth recebido (funcionalidade ainda não implementada)');
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Autenticação Azure AD ainda não implementada completamente')}`);
     }
 
     // Modo desenvolvimento: gerar token diretamente
-    // Isso permite login sem Azure AD para desenvolvimento
     const user = {
       sub: 'dev@qualiit.com.br',
       email: 'dev@qualiit.com.br',
@@ -126,22 +159,18 @@ router.get('/callback', async (req, res) => {
       is_admin: true
     };
 
-    const token = jwt.sign(user, SECRET_KEY, { 
+    const token = jwt.sign(user, SECRET_KEY, {
       algorithm: ALGORITHM,
       expiresIn: `${ACCESS_TOKEN_EXPIRE_MINUTES}m`
     });
 
-    // Redirecionar para frontend com token na URL
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     return res.redirect(`${frontendUrl}/auth/success?token=${encodeURIComponent(token)}`);
-
-  } catch (error) {
-    logger.error('Erro no callback de autenticação', error, {
+  } catch (err) {
+    logger.error('Erro no callback de autenticação', err, {
       endpoint: '/api/auth/callback',
     });
-    
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const errorMessage = error.message || 'Erro ao processar autenticação';
+    const frontendUrl = getFrontendRedirectUrl(req, process.env.FRONTEND_URL || 'http://localhost:5173');
+    const errorMessage = err.message || 'Erro ao processar autenticação';
     return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
   }
 });

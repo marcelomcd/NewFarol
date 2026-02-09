@@ -132,8 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = () => {
-    // Redirecionar para OAuth
-    window.location.href = '/api/auth/login'
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const returnOrigin = origin ? `?return_origin=${encodeURIComponent(origin)}` : ''
+    window.location.href = `/api/auth/login${returnOrigin}`
   }
 
   const devLogin = async () => {

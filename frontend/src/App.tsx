@@ -96,12 +96,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+/** Detecta se a app está rodando dentro de um iframe (evita navbar duplicada no Painel Service Up). */
+function isEmbeddedInIframe(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.self !== window.top
+}
+
 function App() {
   const { isAuthenticated } = useAuth()
+  const showNavbar = isAuthenticated && !isEmbeddedInIframe()
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-900 transition-colors duration-300">
-      {isAuthenticated && <Navbar />}
+      {showNavbar && <Navbar />}
       
       <main className={isAuthenticated ? "w-full px-2 py-8" : ""}>
         <Routes>
