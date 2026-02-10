@@ -407,34 +407,11 @@ server: {
 
 O Painel Service UP é um sistema independente que requer sua própria configuração.
 
-Crie um arquivo `.env` na pasta `Painel Service UP/backend/`:
+1. **Local:** copie `Painel Service UP/backend/.env.example` para `Painel Service UP/backend/.env` e preencha (MySQL: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME=dw_combio`; API: `PORT`, `NODE_ENV`). O `.env` está no `.gitignore` e **nunca** deve ser commitado.
 
-```env
-# ============================================
-# Database MySQL - OBRIGATÓRIO
-# ============================================
-DB_HOST=179.191.91.6
-DB_PORT=3306
-DB_USER=Combio.biomassa
-DB_PASSWORD=sua_senha_aqui
+2. **Produção / Azure Repos:** configurar as mesmas variáveis como **Variable groups** (Pipelines) ou **Azure Key Vault** / secrets do App Service; o backend lê `process.env` normalmente.
 
-# ============================================
-# Server Configuration
-# ============================================
-PORT=3000
-NODE_ENV=development
-
-# ============================================
-# CORS Configuration
-# ============================================
-FRONTEND_URL=http://localhost:5173
-SERVICEUP_FRONTEND_URL=http://localhost:5174
-```
-
-⚠️ **IMPORTANTE**: 
-- Nunca commite o arquivo `.env` com credenciais reais no Git
-- Use sempre valores de exemplo nos commits
-- Mantenha as credenciais seguras
+Variáveis utilizadas: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `PORT`, `NODE_ENV`.
 
 </details>
 
