@@ -40,6 +40,7 @@
 - [Solução de Problemas](#solucao-de-problemas)
 - [Deploy](#deploy)
 - [Documentação](#documentacao)
+- [Histórico de versões](#historico-de-versoes)
 - [Contribuindo](#contribuindo)
 - [Licença](#licenca)
 
@@ -442,24 +443,42 @@ SERVICEUP_FRONTEND_URL=http://localhost:5174
 
 #### Passo 1: Registrar Aplicação no Azure Portal
 
-1. Acesse: [Azure Portal](https://portal.azure.com) > **Azure Active Directory** > **App registrations**
-2. Clique em **"New registration"**
+1. Acesse: [Azure Portal](https://portal.azure.com) > **Microsoft Entra ID** > **Registros de aplicativo**
+2. Clique em **"Novo registro"** (ou edite o app **Farol Operacional**)
 3. Configure:
-   - **Name**: `NewFarol`
-   - **Supported account types**: Escolha conforme necessário
-   - **Redirect URI**: 
-     - Type: **Web**
-     - URI: `http://localhost:8000/api/auth/callback`
-     - Type: **Single-page application (SPA)**
-     - URI: `http://localhost:5173/auth/success`
+   - **Name**: `NewFarol` / Farol Operacional
+   - **Supported account types**: Use **"Contas somente neste diretório organizacional (apenas Quali IT)"**. Usuários de outras empresas (Consigaz, etc.) entram como **convidados B2B** no tenant Quali IT — veja passo 5 abaixo. (Se o app estiver como multitenant, altere de volta para único tenant.)
 
-#### Passo 2: Configurar Permissões
+4. **Autenticação (Authentication)** — essencial para evitar erro `AADSTS700025`:
+   - Vá em **Autenticação** no menu do app.
+   - Em **Configurações de plataforma**, adicione uma plataforma **Web** (não apenas SPA):
+     - Clique em **"Adicionar uma plataforma"** > **Web**
+     - Em **URIs de redirecionamento**, adicione: `http://localhost:8000/api/auth/callback`
+     - (Em produção, adicione também `https://seu-dominio/api/auth/callback`)
+   - Em **Clientes públicos**, deixe **Permitir fluxos de cliente público** = **Não**.  
+     Se estiver **Sim**, o Entra ID trata o app como cliente público e rejeita `client_secret` na troca do código por token (erro AADSTS700025).
+   - Opcional: adicione plataforma **Single-page application (SPA)** com URI `http://localhost:5173/auth/success` para o frontend.
 
-1. Vá em **API permissions**
-2. Clique em **"Add a permission"**
-3. Selecione **Microsoft Graph** > **Delegated permissions**
-4. Adicione: `User.Read`, `email`, `profile`
-5. Clique em **"Grant admin consent"**
+Resumo: o callback do backend (`/api/auth/callback`) deve ser **Web** e o app **não** pode ser “cliente público”.
+
+#### Passo 2: Configurar Permissões (Farol Operacional / Entra ID)
+
+Para o **login OAuth2** (Entrar com Microsoft) o Farol Operacional precisa apenas de **permissões delegadas**:
+
+| Permissão     | Tipo      | Descrição                          | Necessária para login |
+|---------------|-----------|------------------------------------|------------------------|
+| **User.Read** | Delegado  | Sign in and read user profile      | ✅ Sim                 |
+| **email**     | Delegado  | View users' email address          | ✅ Sim                 |
+| **openid**    | Delegado  | Sign users in (OpenID Connect)      | ✅ Sim (já incluído com User.Read) |
+
+**O que fazer no portal (Permissões de APIs):**
+
+1. Vá em **Registros de aplicativo** > **Farol Operacional** > **Permissões de APIs**.
+2. Confirme que existem **User.Read** e **email** (tipo **Delegado**). Adicione com **"+ Adicionar uma permissão"** > **Microsoft Graph** > **Permissões delegadas** se faltar.
+3. **Remova** a permissão **User.Read.All** (tipo **Aplicativo**) se o app não precisar listar todos os usuários do diretório — ela não é usada no fluxo de login e costuma exibir "Não concedido para qualiit.com.br".
+4. Clique em **"Conceder consentimento do administrador para qualiit.com.br"** para que **User.Read** e **email** fiquem com status concedido (evita falhas de consent no login).
+
+Após conceder o consentimento, as colunas "Consentimento do administrador" e "Status" devem indicar que as permissões estão concedidas para o tenant.
 
 #### Passo 3: Obter Credenciais
 
@@ -478,11 +497,27 @@ Adicione as credenciais no arquivo `.env` do backend:
 AZURE_AD_TENANT_ID=seu-tenant-id-aqui
 AZURE_AD_CLIENT_ID=seu-client-id-aqui
 AZURE_AD_CLIENT_SECRET=seu-client-secret-aqui
+AZURE_AD_REDIRECT_URI=http://localhost:8000/api/auth/callback
+# Use false para ativar login real com Microsoft Entra ID; true apenas para dev sem Azure
+AZURE_AD_IS_PUBLIC_CLIENT=false
 ```
+
+#### Passo 5: Convidar usuários de outras empresas (B2B) — sem aprovação do admin deles
+
+O Farol é da **Quali IT**. Para que alguém de outra empresa (ex.: tecnologia@consigaz.com.br) faça login **sem** tela de "Aprovação necessária" no tenant da empresa dele:
+
+1. No **tenant Quali IT**: [Azure Portal](https://portal.azure.com) > **Microsoft Entra ID** > **Usuários** > **Novo usuário convidado** (ou **Users** > **Invite external user**).
+2. Informe o **e-mail** do usuário externo (ex.: `tecnologia@consigaz.com.br`), nome de exibição e mensagem de convite (opcional).
+3. Clique em **Convidar**. O usuário recebe um e-mail; ao aceitar, passa a existir no diretório da Quali IT como **convidado**.
+4. A partir daí ele acessa o Farol normalmente (Entrar com Microsoft), autenticando no **tenant Quali IT**. Nenhuma aprovação do admin da Consigaz é necessária.
+5. O backend continua filtrando os dados pelo domínio do e-mail (`utils/auth.js`): usuário @consigaz.com.br vê apenas dados do cliente Consigaz.
+
+Resumo: **app single-tenant (só Quali IT) + convidados B2B** = sistema é seu, você controla quem entra; a outra empresa não precisa aprovar app.
 
 ⚠️ **IMPORTANTE**: 
 - Configure os Redirect URIs no Azure Portal conforme mostrado acima
 - O Client Secret expira - configure um lembrete para renovar
+- Para OAuth2 com Entra ID: defina `AZURE_AD_CLIENT_SECRET` e `AZURE_AD_IS_PUBLIC_CLIENT=false`
 - Nunca commite o arquivo `.env` no Git (já está no `.gitignore`)
 
 </details>
@@ -1758,6 +1793,33 @@ Todos os direitos reservados. Este software não pode ser copiado, modificado, d
 
 ---
 
+<a id="historico-de-versoes"></a>
+## 📋 Histórico de versões
+
+### 2.3.0 (09/02/2026)
+
+**Autenticação e login**
+- Redirect de login mantém a mesma origem (ex.: ao abrir em `http://localhost:5174/login`, o retorno após login permanece na porta 5174; uso de `return_origin` no backend).
+- OAuth2 completo com Microsoft Entra ID: troca de código por token, leitura de `id_token`, geração de JWT interno e redirecionamento para o frontend.
+- `is_admin` definido por domínio: apenas `@qualiit.com.br` é administrador; demais usuários têm acesso restrito ao cliente (já existente em `utils/auth.js`).
+
+**Acesso de outras empresas (B2B)**
+- App mantido single-tenant (Quali IT). Usuários externos (ex.: Consigaz) entram como **convidados B2B** no tenant Quali IT.
+- Documentação: convite de convidados, atribuição apenas ao app Farol Operacional e “Atribuição de usuário necessária?” = Sim, para que o convidado acesse somente o Farol.
+- Sugestão de uso de **código de uso único por e-mail** (one-time passcode) no Entra ID para simplificar o primeiro acesso do convidado (sem necessidade de “aceitar convite” em outro lugar).
+
+**Correções**
+- Navbar duplicada ao abrir Painel Service Up: navbar oculta quando a app está em iframe (`window.self !== window.top`).
+- Logo Quali IT não carregava: adicionado `frontend/public/logo-qualiit.svg` (asset servido na raiz).
+
+**Documentação**
+- Permissões de API no Entra ID (Farol Operacional): User.Read, email, remoção de User.Read.All desnecessária, concessão de consentimento do administrador.
+- App registrado como **Web** (não cliente público) e “Permitir fluxos de cliente público” = Não, para evitar erro AADSTS700025 ao enviar `client_secret`.
+- Tokens implícitos/híbridos: não marcar “Tokens de acesso” nem “Tokens de ID” (fluxo é authorization code).
+- Passo a passo para convidar usuários B2B e configurar atribuição apenas ao Farol.
+
+---
+
 ## 📞 Suporte
 
 Para suporte, dúvidas ou problemas:
@@ -1770,8 +1832,8 @@ Para suporte, dúvidas ou problemas:
 
 <div align="center">
 
-**Última atualização**: 11/01/2026
-**Versão**: 2.2.0
+**Última atualização**: 09/02/2026  
+**Versão**: 2.3.0
 **Backend**: Node.js/Express  
 **Frontend**: React/TypeScript  
 **Desenvolvido por**: Marcelo Macedo  
