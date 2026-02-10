@@ -1798,9 +1798,10 @@ Todos os direitos reservados. Este software não pode ser copiado, modificado, d
 
 | Versão | Data | Alterações |
 |--------|------|------------|
-| 2.3.0 | 09/02/2026 | Redirect de login por origem (return_origin). OAuth2 completo com Microsoft Entra ID (troca código por token, id_token, JWT). is_admin por domínio (@qualiit.com.br). Acesso B2B: convidados no tenant Quali IT, atribuição só ao app Farol, doc. one-time passcode. Correções: navbar duplicada no Painel Service Up (oculta em iframe), logo Quali IT (public/logo-qualiit.svg). Doc: permissões Entra ID, app Web (não cliente público), tokens implícitos, passo a passo B2B. |
-| 2.2.0 | 11/01/2026 | Versão anterior: dashboard interativo, autenticação OAuth, integração Azure DevOps, Painel Service UP via iframe. |
-| 2.0.0 | 12/2025 | Versão inicial: gestão de projetos Azure DevOps, WIQL, features, relatórios, exportação Excel, tema claro/escuro. |
+| 2.3.0 | 09-10/02/2026 | Redirect de login por origem (return_origin). OAuth2 completo com Microsoft Entra ID (troca código por token, id_token, JWT). is_admin por domínio (@qualiit.com.br). Acesso B2B: convidados no tenant Quali IT, atribuição só ao app Farol, doc. one-time passcode. Correções: navbar duplicada no Painel Service Up (oculta em iframe), logo Quali IT (public/logo-qualiit.svg). Doc: permissões Entra ID, app Web (não cliente público), tokens implícitos, passo a passo B2B. Histórico de versões em tabela. |
+| 2.2.0 | 12/01/2026 | Sincronização Painel Service UP com repositório (Davi Silva). Atualização de scripts e configuração de portas. Update submodule Painel Service UP. |
+| 2.1.0 | 11/01/2026 | Consolidação de documentação em README.md. Remoção de arquivos .md desnecessários. READMEOLD no .gitignore. |
+| 2.0.0 | 08/01/2026 | Migração completa do backend Python para Node.js. ServiceUp via iframe (independência total). Arquivos .env.example para ambos os backends. README e ENV_SETUP. Correções de imports, proxy Vite, baseURL da API, connection.js. Garantia de independência New Farol / Painel Service UP. Estrutura frontend ServiceUp independente. |
 
 ---
 
