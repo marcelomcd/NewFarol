@@ -39,18 +39,21 @@ export function getUserEmailFromToken(token) {
 }
 
 /**
- * Obtém o filtro de cliente baseado no email do usuário
- * Usuários @qualiit.com.br são admin e veem tudo
- * Outros usuários veem apenas features do seu cliente
+ * Apenas Quali IT (@qualiit.com.br) tem visão total dos dados (sem filtro por cliente).
+ * Combio e demais clientes veem apenas dados do seu cliente.
  */
+function isQualiItAdmin(email) {
+  if (!email) return false;
+  return email.toLowerCase().endsWith('@qualiit.com.br');
+}
+
 export function getUserClientFromEmail(email) {
   if (!email) {
     return null;
   }
 
-  // Admin: usuários @qualiit.com.br veem tudo
-  if (email.toLowerCase().endsWith('@qualiit.com.br')) {
-    return null; // null = sem filtro (admin)
+  if (isQualiItAdmin(email)) {
+    return null; // null = sem filtro (só Quali IT)
   }
 
   // Extrair domínio do email
@@ -130,6 +133,5 @@ export function shouldFilterByClient(token) {
     return false;
   }
 
-  // Admin não filtra
-  return !email.toLowerCase().endsWith('@qualiit.com.br');
+  return !isQualiItAdmin(email);
 }

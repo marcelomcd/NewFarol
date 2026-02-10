@@ -43,7 +43,8 @@ router.get('/me', (req, res, next) => {
       sub: decoded.sub,
       email: decoded.email,
       name: decoded.name,
-      is_admin: decoded.is_admin || false
+      is_admin: decoded.is_admin || false,
+      can_access_serviceup: decoded.can_access_serviceup ?? decoded.is_admin ?? false
     });
 
   } catch (error) {
@@ -192,13 +193,17 @@ router.get('/callback', async (req, res) => {
         const name = decoded.name || decoded.preferred_username || decoded.email || decoded.sub || 'Usuário';
         const email = (decoded.preferred_username || decoded.email || decoded.sub || '').toString().toLowerCase();
         const sub = decoded.sub;
+        // Admin total (todas as páginas): apenas @qualiit.com.br
         const isAdmin = email.endsWith('@qualiit.com.br');
+        // Painel Service UP: Quali IT ou Combio (banco deles)
+        const canAccessServiceUp = email.endsWith('@qualiit.com.br') || email.includes('@combio');
 
         const user = {
           sub,
           email: email || sub,
           name,
           is_admin: isAdmin,
+          can_access_serviceup: canAccessServiceUp,
         };
 
         const token = jwt.sign(user, SECRET_KEY, {
@@ -222,12 +227,13 @@ router.get('/callback', async (req, res) => {
       }
     }
 
-    // Modo desenvolvimento: gerar token diretamente
+    // Modo desenvolvimento: gerar token diretamente (Quali IT = admin total + Service UP)
     const user = {
       sub: 'dev@qualiit.com.br',
       email: 'dev@qualiit.com.br',
       name: 'Usuário de Desenvolvimento',
-      is_admin: true
+      is_admin: true,
+      can_access_serviceup: true
     };
 
     const token = jwt.sign(user, SECRET_KEY, {

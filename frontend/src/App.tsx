@@ -96,6 +96,58 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+/** Rota só para admin total (@qualiit): Projetos, Relatórios, Features, etc. */
+function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, user } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400 text-lg font-medium">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!user?.is_admin) {
+    return <Navigate to="/" replace />
+  }
+
+  return <>{children}</>
+}
+
+/** Rota só para quem pode acessar Painel Service UP (@qualiit ou @combio). */
+function ServiceUpRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, user } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400 text-lg font-medium">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!user?.can_access_serviceup) {
+    return <Navigate to="/" replace />
+  }
+
+  return <>{children}</>
+}
+
 /** Detecta se a app está rodando dentro de um iframe (evita navbar duplicada no Painel Service Up). */
 function isEmbeddedInIframe(): boolean {
   if (typeof window === 'undefined') return false
@@ -130,49 +182,49 @@ function App() {
           <Route
             path="/serviceup"
             element={
-              <ProtectedRoute>
+              <ServiceUpRoute>
                 <ServiceUp />
-              </ProtectedRoute>
+              </ServiceUpRoute>
             }
           />
           <Route
             path="/dashboard-old"
             element={
-              <ProtectedRoute>
+              <AdminOnlyRoute>
                 <Dashboard />
-              </ProtectedRoute>
+              </AdminOnlyRoute>
             }
           />
           <Route
             path="/features/:id"
             element={
-              <ProtectedRoute>
+              <AdminOnlyRoute>
                 <FeatureDetails />
-              </ProtectedRoute>
+              </AdminOnlyRoute>
             }
           />
           <Route
             path="/projects/active"
             element={
-              <ProtectedRoute>
+              <AdminOnlyRoute>
                 <ActiveProjects />
-              </ProtectedRoute>
+              </AdminOnlyRoute>
             }
           />
           <Route
             path="/projects/completed"
             element={
-              <ProtectedRoute>
+              <AdminOnlyRoute>
                 <CompletedProjects />
-              </ProtectedRoute>
+              </AdminOnlyRoute>
             }
           />
           <Route
             path="/reports"
             element={
-              <ProtectedRoute>
+              <AdminOnlyRoute>
                 <Reports />
-              </ProtectedRoute>
+              </AdminOnlyRoute>
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -5,6 +5,7 @@ interface User {
   email: string
   name: string
   is_admin: boolean
+  can_access_serviceup?: boolean
 }
 
 interface AuthContextType {

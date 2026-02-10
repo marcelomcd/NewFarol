@@ -145,11 +145,15 @@ export default function Navbar({ farolStatus: propFarolStatus }: NavbarProps) {
 
   const navLinks = [
     { path: '/', label: 'Dashboard' },
-    { path: '/serviceup', label: 'Painel Service UP' },
+    { path: '/serviceup', label: 'Painel Service UP', serviceUpOnly: true },
     { path: '/projects/active', label: 'Projetos Ativos', adminOnly: true },
     { path: '/projects/completed', label: 'Projetos Concluídos', adminOnly: true },
     { path: '/reports', label: 'Relatórios', adminOnly: true },
-  ].filter(link => !link.adminOnly || (isAuthenticated && user?.is_admin))
+  ].filter(link => {
+    if (link.adminOnly) return isAuthenticated && user?.is_admin
+    if (link.serviceUpOnly) return isAuthenticated && (user?.can_access_serviceup === true)
+    return true
+  })
 
   // Aplicar estilo glass com cores baseadas no farol APENAS na página de detalhes
   const getNavbarStyle = () => {
