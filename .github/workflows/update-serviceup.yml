@@ -1,0 +1,88 @@
+# Atualiza automaticamente a pasta "Painel Service UP" com o repositório do Davi Silva
+# (Qualiit.Portal.Clientes.v2), sem precisar rodar update-serviceup.bat.
+#
+# Configurar no repositório:
+# - Secret AZURE_DEVOPS_PAT (ou SERVICEUP_SYNC_TOKEN): PAT com permissão
+#   "Code (Read)" no repo Qualiit.Portal.Clientes.v2 e "Code (Read & Write)"
+#   no repo atual (para push), se o remote for Azure.
+# - Se usar apenas GitHub: GITHUB_TOKEN já permite push; para clone do repo
+#   externo (Azure) use um PAT em SERVICEUP_SYNC_TOKEN.
+
+name: Atualizar Painel Service UP
+
+on:
+  schedule:
+    # Todo dia às 06:00 UTC (03:00 BRT)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+env:
+  SERVICEUP_REPO: 'https://dev.azure.com/qualiit/ALM/_git/Qualiit.Portal.Clientes.v2'
+  TARGET_DIR: 'Painel Service UP'
+  TEMP_DIR: 'temp_serviceup_sync'
+
+jobs:
+  sync-serviceup:
+    name: Sincronizar Painel Service UP
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repositório
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.SERVICEUP_SYNC_TOKEN || secrets.AZURE_DEVOPS_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Configurar Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Clonar repositório Painel Service UP (Davi Silva)
+        env:
+          # Para repo privado na Azure: configurar secret SERVICEUP_SYNC_TOKEN ou AZURE_DEVOPS_PAT (PAT com Code Read)
+          TOKEN: ${{ secrets.SERVICEUP_SYNC_TOKEN || secrets.AZURE_DEVOPS_PAT }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            REPO_URL="https://x:${TOKEN}@dev.azure.com/qualiit/ALM/_git/Qualiit.Portal.Clientes.v2"
+          else
+            REPO_URL="${{ env.SERVICEUP_REPO }}"
+            echo "::warning::Nenhum token (SERVICEUP_SYNC_TOKEN/AZURE_DEVOPS_PAT). Usando clone público."
+          fi
+          git clone --depth 1 "$REPO_URL" "${{ env.TEMP_DIR }}"
+          if [ ! -d "${{ env.TEMP_DIR }}" ]; then
+            echo "::error::Falha ao clonar repositório Painel Service UP"
+            exit 1
+          fi
+
+      - name: Sincronizar arquivos para Painel Service UP
+        run: |
+          rm -f "${{ env.TEMP_DIR }}/README.md"
+          mkdir -p "${{ env.TARGET_DIR }}"
+          # P = protect: não apagar backend/.env no destino
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='backend/.env' \
+            --exclude='.env' \
+            --filter 'P backend/.env' \
+            "${{ env.TEMP_DIR }}/" "${{ env.TARGET_DIR }}/"
+          rm -rf "${{ env.TEMP_DIR }}"
+
+      - name: Verificar se há alterações
+        id: changes
+        run: |
+          git status --short
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit e push
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git add "${{ env.TARGET_DIR }}"
+          git commit -m "chore: atualizar Painel Service UP a partir do repositório Qualiit.Portal.Clientes.v2 [bot]"
+          git push

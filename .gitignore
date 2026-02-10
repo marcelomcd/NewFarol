@@ -62,5 +62,8 @@ coverage/
 # Old documentation (backup)
 READMEOLD.md
 
+# Scripts Windows (não enviar ao repositório)
+*.bat
+
 # Git submodules (não ignorar - precisamos rastrear a referência)
 !.gitmodules

@@ -1193,36 +1193,27 @@ git submodule init
 git submodule update
 ```
 
-### 🔄 Atualizando o Submodule (quando o Davi fizer alterações)
+### 🔄 Atualização automática do Painel Service UP
 
-Quando o Davi fizer alterações no repositório `Qualiit.Portal.Clientes.v2`, você pode atualizar o New Farol:
+A pasta **Painel Service UP** é sincronizada com o repositório do Davi Silva (`Qualiit.Portal.Clientes.v2`) **automaticamente**, sem precisar rodar scripts locais:
 
-```bash
-# Opção 1: Usar o script automatizado (RECOMENDADO)
-update-serviceup.bat
+- **Workflow** `.github/workflows/update-serviceup.yml`: roda **todo dia** (agendado) e pode ser disparado **manualmente** (Actions → "Atualizar Painel Service UP" → Run workflow).
+- Após o workflow rodar, as alterações são commitadas e enviadas ao repositório; um `git pull` traz a pasta atualizada.
 
-# Opção 2: Manualmente
-cd "Painel Service UP"
-git checkout main
-git pull origin main
-cd ..
-git add "Painel Service UP"
-git commit -m "Update Painel Service UP submodule to latest version"
-git push origin main
-```
+**Secrets (repositório privado):** configurar no GitHub/Azure o secret **SERVICEUP_SYNC_TOKEN** ou **AZURE_DEVOPS_PAT** (PAT com permissão de leitura no repo `Qualiit.Portal.Clientes.v2` e de escrita no repo New Farol, para o push).
+
+**Arquivos .bat:** os arquivos `*.bat` (ex.: `update-serviceup.bat`, `start.bat`) **não são versionados** (estão no `.gitignore`). Podem ser usados apenas localmente; a sincronização em produção é feita pelo workflow.
 
 ### 📝 Fluxo de Trabalho
 
 #### Para Davi Silva (Painel Service UP)
 1. Trabalha normalmente no repositório `Qualiit.Portal.Clientes.v2`
 2. Faz commits e push normalmente
-3. **Não precisa** fazer nada no repositório New Farol
+3. **Não precisa** fazer nada no repositório New Farol — o workflow atualiza a pasta automaticamente
 
-#### Para Marcelo Macedo (New Farol)
-1. Quando necessário, atualiza o submodule usando `update-serviceup.bat`
-2. Ou manualmente seguindo os comandos acima
-3. Trabalha normalmente no New Farol
-4. Todos os arquivos ficam sincronizados no repositório New Farol
+#### Para quem mantém o New Farol
+1. Basta dar **pull** no repositório; a pasta `Painel Service UP` já vem atualizada pelo workflow (ou disparar o workflow manualmente nas Actions)
+2. Não é necessário rodar nenhum `.bat` para sincronizar
 
 ### ⚠️ Comandos Úteis
 
