@@ -1796,27 +1796,11 @@ Todos os direitos reservados. Este software não pode ser copiado, modificado, d
 <a id="historico-de-versoes"></a>
 ## 📋 Histórico de versões
 
-### 2.3.0 (09/02/2026)
-
-**Autenticação e login**
-- Redirect de login mantém a mesma origem (ex.: ao abrir em `http://localhost:5174/login`, o retorno após login permanece na porta 5174; uso de `return_origin` no backend).
-- OAuth2 completo com Microsoft Entra ID: troca de código por token, leitura de `id_token`, geração de JWT interno e redirecionamento para o frontend.
-- `is_admin` definido por domínio: apenas `@qualiit.com.br` é administrador; demais usuários têm acesso restrito ao cliente (já existente em `utils/auth.js`).
-
-**Acesso de outras empresas (B2B)**
-- App mantido single-tenant (Quali IT). Usuários externos (ex.: Consigaz) entram como **convidados B2B** no tenant Quali IT.
-- Documentação: convite de convidados, atribuição apenas ao app Farol Operacional e “Atribuição de usuário necessária?” = Sim, para que o convidado acesse somente o Farol.
-- Sugestão de uso de **código de uso único por e-mail** (one-time passcode) no Entra ID para simplificar o primeiro acesso do convidado (sem necessidade de “aceitar convite” em outro lugar).
-
-**Correções**
-- Navbar duplicada ao abrir Painel Service Up: navbar oculta quando a app está em iframe (`window.self !== window.top`).
-- Logo Quali IT não carregava: adicionado `frontend/public/logo-qualiit.svg` (asset servido na raiz).
-
-**Documentação**
-- Permissões de API no Entra ID (Farol Operacional): User.Read, email, remoção de User.Read.All desnecessária, concessão de consentimento do administrador.
-- App registrado como **Web** (não cliente público) e “Permitir fluxos de cliente público” = Não, para evitar erro AADSTS700025 ao enviar `client_secret`.
-- Tokens implícitos/híbridos: não marcar “Tokens de acesso” nem “Tokens de ID” (fluxo é authorization code).
-- Passo a passo para convidar usuários B2B e configurar atribuição apenas ao Farol.
+| Versão | Data | Alterações |
+|--------|------|------------|
+| 2.3.0 | 09/02/2026 | Redirect de login por origem (return_origin). OAuth2 completo com Microsoft Entra ID (troca código por token, id_token, JWT). is_admin por domínio (@qualiit.com.br). Acesso B2B: convidados no tenant Quali IT, atribuição só ao app Farol, doc. one-time passcode. Correções: navbar duplicada no Painel Service Up (oculta em iframe), logo Quali IT (public/logo-qualiit.svg). Doc: permissões Entra ID, app Web (não cliente público), tokens implícitos, passo a passo B2B. |
+| 2.2.0 | 11/01/2026 | Versão anterior: dashboard interativo, autenticação OAuth, integração Azure DevOps, Painel Service UP via iframe. |
+| 2.0.0 | 12/2025 | Versão inicial: gestão de projetos Azure DevOps, WIQL, features, relatórios, exportação Excel, tema claro/escuro. |
 
 ---
 
