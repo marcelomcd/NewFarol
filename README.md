@@ -1554,6 +1554,25 @@ location.reload();
 <a id="deploy"></a>
 ## 🚀 Deploy {#deploy}
 
+**Troca de produção (Portal Clientes → New Farol):** para substituir a aplicação antiga pela New Farol no **mesmo link de produção** e desativar a antiga, use o guia **[DEPLOY.md](DEPLOY.md)** (passos para inativar o Portal Clientes e subir a New Farol com Docker no mesmo host/URL).
+
+<details>
+<summary><strong>🐳 Deploy com Docker (recomendado para produção)</strong></summary>
+
+Na raiz do repositório:
+
+```bash
+# Configurar backend/.env (copiar de backend/.env.example e preencher FRONTEND_URL, AZURE_AD_*, etc.)
+cp backend/.env.example backend/.env
+
+# Build e subir frontend (porta 80) + backend
+docker compose up -d --build
+```
+
+O frontend (nginx) expõe a porta 80; `/api` e `/webhooks` são repassados para o backend. Detalhes e passos para troca de produção: [DEPLOY.md](DEPLOY.md).
+
+</details>
+
 <details>
 <summary><strong>🔧 Deploy do Backend</strong></summary>
 
@@ -1667,9 +1686,8 @@ serve -s dist -l 3000
 <details>
 <summary><strong>📦 Azure Repos</strong></summary>
 
-O projeto já está configurado no Azure Repos:
-
-**Repositório**: https://dev.azure.com/qualiit/ALM/_git/Qualiit.Portal.Clients.v3
+- **Repositório atual (New Farol):** https://dev.azure.com/qualiit/ALM/_git/Qualiit.Portal.New.Farol  
+- **Projeto anterior (Portal Clientes):** https://dev.azure.com/qualiit/ALM/_git/Qualiit.Portal.Clientes — não é alterado; apenas a aplicação em produção é desativada no servidor quando a New Farol assume o mesmo link (ver [DEPLOY.md](DEPLOY.md)).
 
 Para fazer push de alterações:
 

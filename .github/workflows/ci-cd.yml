@@ -7,150 +7,59 @@ on:
     branches: [ main, develop ]
 
 env:
-  PYTHON_VERSION: '3.11'
   NODE_VERSION: '18'
 
 jobs:
   # =============================================================================
-  # BACKEND JOBS
+  # BACKEND JOBS (Node.js)
   # =============================================================================
   
   backend-lint:
-    name: Backend - Lint & Type Check
+    name: Backend - Install & Verify
     runs-on: ubuntu-latest
     
     steps:
     - uses: actions/checkout@v3
     
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
       with:
-        python-version: ${{ env.PYTHON_VERSION }}
-    
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
     
     - name: Install dependencies
-      run: |
-        cd backend
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
-        pip install black isort mypy pylint
-    
-    - name: Format check with Black
-      run: cd backend && black --check app tests
-    
-    - name: Import sorting with isort
-      run: cd backend && isort --check-only app tests
-    
-    - name: Type check with mypy
-      run: cd backend && mypy app
-      continue-on-error: true  # Não bloquear por enquanto
-    
-    - name: Lint with pylint
-      run: cd backend && pylint app
-      continue-on-error: true  # Não bloquear por enquanto
+      run: cd backend && npm ci
   
   backend-test:
-    name: Backend - Tests
+    name: Backend - Install
     runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test_newfarol
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-    
     steps:
     - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
       with:
-        python-version: ${{ env.PYTHON_VERSION }}
-    
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
-    
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
     - name: Install dependencies
-      run: |
-        cd backend
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
-    
-    - name: Run tests with coverage
-      env:
-        DATABASE_URL: postgresql://test:test@localhost:5432/test_newfarol
-        SECRET_KEY: test-secret-key-min-32-chars-long
-        AZDO_PAT: test-pat-token-for-testing-only
-        MYSQL_HOST: localhost
-        MYSQL_USER: test
-        MYSQL_PASSWORD: test
-        MYSQL_DATABASE: test
-      run: |
-        cd backend
-        pytest tests/ \
-          --cov=app \
-          --cov-report=xml \
-          --cov-report=html \
-          --cov-report=term \
-          --junit-xml=test-results.xml \
-          -v
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: backend/coverage.xml
-        flags: backend
-        name: backend-coverage
-    
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: backend-test-results
-        path: backend/test-results.xml
+      run: cd backend && npm ci
   
   backend-security:
-    name: Backend - Security Scan
+    name: Backend - Security (npm audit)
     runs-on: ubuntu-latest
-    
     steps:
     - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
       with:
-        python-version: ${{ env.PYTHON_VERSION }}
-    
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
     - name: Install dependencies
-      run: |
-        pip install bandit safety
-    
-    - name: Run Bandit security scan
-      run: cd backend && bandit -r app -f json -o bandit-report.json
-      continue-on-error: true
-    
-    - name: Check dependencies for vulnerabilities
-      run: cd backend && safety check --json
+      run: cd backend && npm ci
+    - name: Audit dependencies
+      run: cd backend && npm audit --audit-level=high
       continue-on-error: true
   
   # =============================================================================

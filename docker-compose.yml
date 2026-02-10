@@ -1,0 +1,26 @@
+# New Farol - Produção (substitui Portal Clientes no mesmo link)
+# Uso: docker compose up -d
+# Frontend (nginx) expõe porta 80; /api e /webhooks são repassados ao backend.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=8000
+    env_file:
+      - backend/.env
+    restart: unless-stopped
+    # Não expor 8000 externamente se o tráfego vier só via nginx (frontend)
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
