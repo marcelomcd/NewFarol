@@ -496,6 +496,7 @@ Resumo: **app single-tenant (só Quali IT) + convidados B2B** = sistema é seu, 
 - O Client Secret expira - configure um lembrete para renovar
 - Para OAuth2 com Entra ID: defina `AZURE_AD_CLIENT_SECRET` e `AZURE_AD_IS_PUBLIC_CLIENT=false`
 - Nunca commite o arquivo `.env` no Git (já está no `.gitignore`)
+- **Revisão do manifesto (Farol Operacional):** para validar Reply URLs de produção, optionalClaims (name/email no id_token) e signInAudience, use o guia [docs/ENTRA-ID-MANIFEST.md](docs/ENTRA-ID-MANIFEST.md).
 
 </details>
 
