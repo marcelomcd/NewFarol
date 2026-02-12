@@ -1522,7 +1522,7 @@ location.reload();
 <a id="deploy"></a>
 ## 🚀 Deploy {#deploy}
 
-**Troca de produção (Portal Clientes → New Farol):** para substituir a aplicação antiga pela New Farol no **mesmo link de produção** e desativar a antiga, use o guia **[DEPLOY.md](DEPLOY.md)** (passos para inativar o Portal Clientes e subir a New Farol com Docker no mesmo host/URL).
+**Troca de produção (Portal Clientes → New Farol):** para substituir a aplicação antiga pela New Farol no **mesmo link de produção** e desativar a antiga, use o guia **[DEPLOY.md](DEPLOY.md)** (passos para inativar o Portal Clientes e subir a New Farol com Docker no mesmo host/URL). Se o link de produção for **https://d2k6golik0z21l.cloudfront.net**, use a seção [§6 do DEPLOY.md](DEPLOY.md#6-substituição-no-cloudfront-httpsd2k6golik0z21lcloudfrontnet) (Substituição no CloudFront).
 
 <details>
 <summary><strong>🐳 Deploy com Docker (recomendado para produção)</strong></summary>
