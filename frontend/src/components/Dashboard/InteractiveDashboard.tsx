@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { api, azdoApi, featuresApi, Feature, featuresCountApi } from '../../services/api'
+import { useQuery, useQueries } from '@tanstack/react-query'
+import { api, azdoApi, featuresApi, workItemsApi, Feature } from '../../services/api'
 import {
   BarChart,
   Bar,
@@ -13,9 +13,11 @@ import {
   YAxis,
   ResponsiveContainer,
   Tooltip,
+  Legend,
 } from 'recharts'
 import { format, subDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { MONTHS_PT } from '../../constants/dashboard'
 import TrafficLight from '../Farol/TrafficLight'
 import FarolTooltip from '../Farol/FarolTooltip'
 import StatusCardsGrid from '../Status/StatusCardsGrid'
@@ -62,11 +64,19 @@ const STATUS_ORDER = [
   'Encerrado',
 ]
 
+const now = new Date()
+const currentMonth = now.getMonth() + 1
+const currentYear = now.getFullYear()
+const YEARS_RANGE = 5
+const yearOptions = Array.from({ length: YEARS_RANGE * 2 + 1 }, (_, i) => currentYear - YEARS_RANGE + i)
+
 export default function InteractiveDashboard() {
   const [selectedFarol, setSelectedFarol] = useState<FarolStatus | null>(null)
   const [selectedClient, setSelectedClient] = useState<string | null>(null)
   const [selectedState, setSelectedState] = useState<string | null>(null)
   const [selectedPMO, setSelectedPMO] = useState<string | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth)
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear)
 
   const [drillDownModal, setDrillDownModal] = useState<{
     isOpen: boolean
@@ -92,6 +102,48 @@ export default function InteractiveDashboard() {
     refetchOnWindowFocus: false,
   })
 
+  const { data: countsByMonthData } = useQuery({
+    queryKey: ['azdo', 'counts-by-month', selectedMonth, selectedYear, true],
+    queryFn: () => azdoApi.getCountsByMonth(selectedMonth, selectedYear, true),
+    staleTime: 60_000,
+  })
+
+  const { data: tasksSummaryData } = useQuery({
+    queryKey: ['work-items', 'tasks-summary'],
+    queryFn: () => workItemsApi.getTasksSummary(),
+    staleTime: 60_000,
+  })
+
+  const { data: tasksOverdueData } = useQuery({
+    queryKey: ['work-items', 'tasks', 'overdue'],
+    queryFn: () => workItemsApi.getTasks({ overdue_only: true }),
+    staleTime: 60_000,
+  })
+
+  const { data: tasksAllData } = useQuery({
+    queryKey: ['work-items', 'tasks', 'all'],
+    queryFn: () => workItemsApi.getTasks({}),
+    staleTime: 60_000,
+  })
+
+  const lastSixMonths = useMemo(() => {
+    const result: { month: number; year: number }[] = []
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date()
+      d.setMonth(d.getMonth() - i)
+      result.push({ month: d.getMonth() + 1, year: d.getFullYear() })
+    }
+    return result
+  }, [])
+
+  const tasksByMonthQueries = useQueries({
+    queries: lastSixMonths.map(({ month, year }) => ({
+      queryKey: ['azdo', 'counts-by-month-tasks', month, year],
+      queryFn: () => azdoApi.getCountsByMonth(month, year, false),
+      staleTime: 60_000,
+    })),
+  })
+
   // Clientes (via consolidado) — evita divergência com lista parcial
   const validClientsLoading = false
 
@@ -101,7 +153,6 @@ export default function InteractiveDashboard() {
     data: consolidatedAzdoData,
     isLoading: consolidatedLoading,
     error: consolidatedError,
-    refetch: refetchConsolidated,
   } = useQuery({
     queryKey: ['azdo', 'consolidated', 7],
     queryFn: () => azdoApi.getConsolidated({ days_near_deadline: 7, cache_seconds: 10 }), // Cache backend reduzido para 10s
@@ -484,6 +535,197 @@ export default function InteractiveDashboard() {
       .sort((a, b) => b.value - a.value)
   }, [filteredItems])
 
+  // Contagens e itens por mês (projetos abertos/fechados no mês selecionado)
+  const monthlyProjectData = useMemo(() => {
+    const start = new Date(selectedYear, selectedMonth - 1, 1)
+    const end = new Date(selectedYear, selectedMonth, 0, 23, 59, 59)
+    const startMs = start.getTime()
+    const endMs = end.getTime()
+
+    const isInMonth = (dateStr: string | undefined) => {
+      if (!dateStr) return false
+      const d = new Date(dateStr)
+      if (Number.isNaN(d.getTime())) return false
+      const ms = d.getTime()
+      return ms >= startMs && ms <= endMs
+    }
+
+    const projectsOpenedItems: Feature[] = []
+    const projectsClosedItems: Feature[] = []
+
+    for (const item of filteredItems) {
+      if (isInMonth(item.created_date)) projectsOpenedItems.push(item)
+      const state = normalizarStatus(item.state || '')
+      if ((state === 'Encerrado' || state === 'Closed') && isInMonth(item.changed_date)) {
+        projectsClosedItems.push(item)
+      }
+    }
+    return {
+      projectsOpened: projectsOpenedItems.length,
+      projectsClosed: projectsClosedItems.length,
+      projectsOpenedItems,
+      projectsClosedItems,
+    }
+  }, [filteredItems, selectedMonth, selectedYear])
+
+  // KPIs de Performance
+  const performanceKpis = useMemo(() => {
+    const total = totalProjects || 1
+    const closed = closedFeaturesWiqlData?.count ?? 0
+    const open = openCount
+    const overdue = !hasFilters ? (countsWiqlData?.overdue ?? 0) : overdueProjects.length
+    const semProblema = (farolSummary as any)?.['Sem Problema']?.count ?? 0
+    const ativosCount = activeItems.length || 1
+
+    const taxaConclusao = total > 0 ? Math.round((closed / total) * 1000) / 10 : 0
+    const taxaAtraso = open > 0 ? Math.round((overdue / open) * 1000) / 10 : 0
+    const saudeFarol = ativosCount > 0 ? Math.round((semProblema / ativosCount) * 1000) / 10 : 0
+    const noPrazo = open > 0 ? Math.round(((open - overdue) / open) * 1000) / 10 : 0
+
+    return { taxaConclusao, taxaAtraso, saudeFarol, noPrazo }
+  }, [
+    totalProjects,
+    closedFeaturesWiqlData?.count,
+    openCount,
+    hasFilters,
+    countsWiqlData?.overdue,
+    overdueProjects.length,
+    farolSummary,
+    activeItems.length,
+  ])
+
+  // Performance por PMO (stacked: Concluídos | Em Dia | Atrasados)
+  const pmoPerformanceData = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const byPmo: Record<
+      string,
+      { closed: number; onTime: number; overdue: number; items: { closed: Feature[]; onTime: Feature[]; overdue: Feature[] } }
+    > = {}
+
+    for (const item of filteredItems) {
+      const pmo = extractPMO(item)
+      const name = pmo?.trim() || 'Não atribuído'
+      if (!byPmo[name]) {
+        byPmo[name] = { closed: 0, onTime: 0, overdue: 0, items: { closed: [], onTime: [], overdue: [] } }
+      }
+
+      const state = normalizarStatus(item.state || '')
+      const isClosed = state === 'Encerrado' || state === 'Closed'
+
+      if (isClosed) {
+        byPmo[name].closed++
+        byPmo[name].items.closed.push(item)
+      } else {
+        const td = getTargetDate(item)
+        if (td) {
+          const target = new Date(td)
+          target.setHours(0, 0, 0, 0)
+          if (target < today) {
+            byPmo[name].overdue++
+            byPmo[name].items.overdue.push(item)
+          } else {
+            byPmo[name].onTime++
+            byPmo[name].items.onTime.push(item)
+          }
+        } else {
+          byPmo[name].onTime++
+          byPmo[name].items.onTime.push(item)
+        }
+      }
+    }
+
+    return Object.entries(byPmo)
+      .map(([name, data]) => ({
+        name,
+        closed: data.closed,
+        onTime: data.onTime,
+        overdue: data.overdue,
+        total: data.closed + data.onTime + data.overdue,
+        items: data.items,
+      }))
+      .filter((p) => p.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10)
+  }, [filteredItems])
+
+  // Evolução de entregas (últimos 6 meses)
+  const closedByMonth = useMemo(() => {
+    const closedItems = (closedFeaturesWiqlData?.items || featuresData?.items || []).filter((item: any) => {
+      const state = normalizarStatus(item.state || '')
+      return state === 'Encerrado' || item.state === 'Closed'
+    })
+
+    const cutoff = new Date()
+    cutoff.setMonth(cutoff.getMonth() - 6)
+    cutoff.setDate(1)
+    cutoff.setHours(0, 0, 0, 0)
+
+    const byMonth = closedItems.reduce((acc: Record<string, number>, item: any) => {
+      if (!item.changed_date) return acc
+      const changed = new Date(item.changed_date)
+      if (Number.isNaN(changed.getTime())) return acc
+      if (changed < cutoff) return acc
+      const key = format(changed, 'yyyy-MM')
+      acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {})
+
+    const months: { monthKey: string; label: string; closed: number }[] = []
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date()
+      d.setMonth(d.getMonth() - i)
+      const key = format(d, 'yyyy-MM')
+      months.push({
+        monthKey: key,
+        label: format(d, 'MMM/yy', { locale: ptBR }),
+        closed: byMonth[key] || 0,
+      })
+    }
+    return months
+  }, [closedFeaturesWiqlData, featuresData])
+
+  // Dados para gráfico Saúde do Farol (pie)
+  const farolPieData = useMemo(() => {
+    const order: FarolStatus[] = ['Sem Problema', 'Com Problema', 'Problema Crítico', 'Indefinido']
+    return order
+      .map((status) => {
+        const data = (farolSummary as any)?.[status]
+        const count = data?.count ?? 0
+        const pct = data?.percentage ?? 0
+        return { name: status, value: count, percentage: pct }
+      })
+      .filter((d) => d.value > 0)
+  }, [farolSummary])
+
+  // KPIs de Tasks
+  const taskPerformanceKpis = useMemo(() => {
+    const total = tasksSummaryData?.total ?? 0
+    const overdue = tasksSummaryData?.overdue_count ?? 0
+    const byState = tasksSummaryData?.by_state ?? {}
+    const closedStates = ['Closed', 'Done', 'Resolved']
+    const closed = Object.entries(byState)
+      .filter(([state]) => closedStates.includes(state))
+      .reduce((sum, [, count]) => sum + count, 0)
+    const taxaConclusao = total > 0 ? Math.round((closed / total) * 1000) / 10 : 0
+    const emAndamento = total - closed
+    return { total, overdue, taxaConclusao, emAndamento }
+  }, [tasksSummaryData])
+
+  // Evolução de tasks fechadas (6 meses)
+  const tasksClosedByMonth = useMemo(() => {
+    return lastSixMonths.map(({ month, year }, idx) => {
+      const res = tasksByMonthQueries[idx]?.data
+      const d = new Date(year, month - 1, 1)
+      return {
+        monthKey: format(d, 'yyyy-MM'),
+        label: format(d, 'MMM/yy', { locale: ptBR }),
+        closed: res?.tasks_closed ?? 0,
+      }
+    })
+  }, [lastSixMonths, tasksByMonthQueries])
+
   // Fechadas por dia (últimos 30 dias): prefere WIQL closed; fallback DB.
   // Regra: NÃO exibir dias com 0 e permitir drilldown por dia.
   const closedByDay = useMemo(() => {
@@ -835,7 +1077,7 @@ export default function InteractiveDashboard() {
             </div>
           </div>
 
-          {/* Cards secundários */}
+          {/* Cards secundários - acima dos cards por mês */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div
               className="glass dark:glass-dark p-8 rounded-lg hover-lift transition-all group cursor-pointer border-b-4 border-orange-500/30 hover:border-orange-500"
@@ -870,6 +1112,107 @@ export default function InteractiveDashboard() {
               </div>
             </div>
           </div>
+
+          {/* Cards por mês - seletor unificado (abaixo de Clientes/PMOs/Encerrados) */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Mês/Ano:</span>
+              <div className="flex gap-2">
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm"
+                >
+                  {MONTHS_PT.map((m, i) => (
+                    <option key={i} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm"
+                >
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div
+                className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all border-b-4 border-blue-400/30 cursor-pointer hover:border-blue-400"
+                onClick={() =>
+                  openDrillDown(
+                    `Projetos Abertos em ${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`,
+                    monthlyProjectData.projectsOpenedItems,
+                    `${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`
+                  )
+                }
+              >
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  {MONTHS_PT[selectedMonth - 1]} / {selectedYear}
+                </div>
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Projetos Abertos no Mês</div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">
+                  {monthlyProjectData.projectsOpened}
+                </div>
+              </div>
+              <div
+                className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all border-b-4 border-gray-400/30 cursor-pointer hover:border-gray-400"
+                onClick={() =>
+                  openDrillDown(
+                    `Projetos Fechados em ${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`,
+                    monthlyProjectData.projectsClosedItems,
+                    `${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`
+                  )
+                }
+              >
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  {MONTHS_PT[selectedMonth - 1]} / {selectedYear}
+                </div>
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Projetos Fechados no Mês</div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-gray-600 to-gray-700 bg-clip-text text-transparent">
+                  {monthlyProjectData.projectsClosed}
+                </div>
+              </div>
+              <div
+                className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all border-b-4 border-teal-400/30 cursor-pointer hover:border-teal-400"
+                onClick={() =>
+                  openDrillDown(
+                    `Task's Abertas em ${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`,
+                    (countsByMonthData?.tasks_opened_items || []) as Feature[],
+                    `${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`
+                  )
+                }
+              >
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  {MONTHS_PT[selectedMonth - 1]} / {selectedYear}
+                </div>
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Task&apos;s Abertas no Mês</div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-teal-500 to-teal-600 bg-clip-text text-transparent">
+                  {countsByMonthData?.tasks_opened ?? '–'}
+                </div>
+              </div>
+              <div
+                className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all border-b-4 border-cyan-400/30 cursor-pointer hover:border-cyan-400"
+                onClick={() =>
+                  openDrillDown(
+                    `Task's Fechadas em ${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`,
+                    (countsByMonthData?.tasks_closed_items || []) as Feature[],
+                    `${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`
+                  )
+                }
+              >
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  {MONTHS_PT[selectedMonth - 1]} / {selectedYear}
+                </div>
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Task&apos;s Fechadas no Mês</div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-cyan-500 to-cyan-600 bg-clip-text text-transparent">
+                  {countsByMonthData?.tasks_closed ?? '–'}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -893,6 +1236,209 @@ export default function InteractiveDashboard() {
             }
           }}
         />
+      </div>
+
+      {/* Análise de Performance */}
+      <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
+        <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2">
+          <span>📊</span>
+          <span>Análise de Performance</span>
+        </h2>
+
+        {/* Scorecard KPIs */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-blue-500">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa de Conclusão</div>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{performanceKpis.taxaConclusao}%</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Projetos encerrados / total</div>
+          </div>
+          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-amber-500">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa de Atraso</div>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{performanceKpis.taxaAtraso}%</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Abertos atrasados / abertos</div>
+          </div>
+          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-green-500">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Saúde do Farol</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{performanceKpis.saudeFarol}%</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Sem Problema / ativos</div>
+          </div>
+          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-emerald-500">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">No Prazo</div>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{performanceKpis.noPrazo}%</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Abertos em dia / abertos</div>
+          </div>
+        </div>
+
+        {/* KPIs de Tasks */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div
+            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-teal-500 cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => {
+              const tasks = tasksAllData?.tasks ?? []
+              const items = tasks.map((t) => ({
+                id: t.id,
+                title: t.title,
+                state: t.state,
+                raw_fields_json: { work_item_type: 'Task', web_url: t.web_url },
+              })) as unknown as Feature[]
+              if (items.length > 0) openDrillDown('Total de Tasks', items, 'Todas as tasks')
+            }}
+          >
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total de Tasks</div>
+            <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">
+              {tasksSummaryData ? taskPerformanceKpis.total : '–'}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Todas as tasks</div>
+          </div>
+          <div
+            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-red-500 cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => {
+              const tasks = tasksOverdueData?.tasks ?? []
+              const items = tasks.map((t) => ({
+                id: t.id,
+                title: t.title,
+                state: t.state,
+                raw_fields_json: { work_item_type: 'Task', web_url: t.web_url },
+              })) as unknown as Feature[]
+              if (items.length > 0) openDrillDown('Tasks Atrasadas', items, 'Tasks atrasadas')
+            }}
+          >
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tasks Atrasadas</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+              {tasksSummaryData ? taskPerformanceKpis.overdue : '–'}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Com prazo vencido</div>
+          </div>
+          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-cyan-500">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa Conclusão Tasks</div>
+            <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">
+              {tasksSummaryData ? `${taskPerformanceKpis.taxaConclusao}%` : '–'}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Closed+Done+Resolved / total</div>
+          </div>
+          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-indigo-500">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tasks Em Andamento</div>
+            <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+              {tasksSummaryData ? taskPerformanceKpis.emAndamento : '–'}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Abertas (não fechadas)</div>
+          </div>
+        </div>
+
+        {/* Performance por PMO + Evolução + Saúde Farol */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
+            <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">Performance por PMO</h3>
+            <ResponsiveContainer width="100%" height={Math.min(400, Math.max(250, pmoPerformanceData.length * 36))}>
+              <BarChart data={pmoPerformanceData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend />
+                <Bar
+                  dataKey="closed"
+                  name="Concluídos"
+                  stackId="a"
+                  fill={COLORS.success}
+                  onClick={(evt: any) => {
+                    const pmoName = evt?.payload?.name ?? evt?.name
+                    const row = pmoPerformanceData.find((p) => p.name === pmoName)
+                    if (row) {
+                      const all = [...row.items.closed, ...row.items.onTime, ...row.items.overdue]
+                      if (all.length > 0) openDrillDown(`PMO: ${row.name}`, all, `PMO: ${row.name}`)
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
+                <Bar
+                  dataKey="onTime"
+                  name="Em dia"
+                  stackId="a"
+                  fill={COLORS.primary}
+                  onClick={(evt: any) => {
+                    const pmoName = evt?.payload?.name ?? evt?.name
+                    const row = pmoPerformanceData.find((p) => p.name === pmoName)
+                    if (row) {
+                      const all = [...row.items.closed, ...row.items.onTime, ...row.items.overdue]
+                      if (all.length > 0) openDrillDown(`PMO: ${row.name}`, all, `PMO: ${row.name}`)
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
+                <Bar
+                  dataKey="overdue"
+                  name="Atrasados"
+                  stackId="a"
+                  fill={COLORS.danger}
+                  onClick={(evt: any) => {
+                    const pmoName = evt?.payload?.name ?? evt?.name
+                    const row = pmoPerformanceData.find((p) => p.name === pmoName)
+                    if (row) {
+                      const all = [...row.items.closed, ...row.items.onTime, ...row.items.overdue]
+                      if (all.length > 0) openDrillDown(`PMO: ${row.name}`, all, `PMO: ${row.name}`)
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
+            <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">Evolução de Entregas (6 meses)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={closedByMonth}>
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="closed" fill={COLORS.primary} name="Projetos fechados" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
+            <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">Saúde do Farol (Performance)</h3>
+            <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie
+                      data={farolPieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={2}
+                      dataKey="value"
+                      label={({ name, percentage }) => `${name}: ${percentage}%`}
+                      onClick={(data: any) => {
+                        const status = data.name as FarolStatus
+                        const items = activeItems.filter((item) => normalizeFarolStatus(item.farol_status) === status)
+                        if (items.length > 0) {
+                          openDrillDown(`Farol: ${status}`, items as Feature[], `Farol: ${status}`)
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {farolPieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={FAROL_COLORS[entry.name as FarolStatus] || '#6b7280'} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+          </div>
+
+          <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
+            <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">Evolução de Tasks Fechadas (6 meses)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={tasksClosedByMonth}>
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="closed" fill="#14b8a6" name="Tasks fechadas" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
 
       {/* Gráficos (limpos) */}
