@@ -37,6 +37,7 @@
 - [Sistema Unificado](#sistema-unificado)
 - [Git Submodules](#git-submodules)
 - [Desenvolvimento](#desenvolvimento)
+- [Testes](#testes)
 - [Solução de Problemas](#solucao-de-problemas)
 - [Deploy](#deploy)
 - [Documentação](#documentacao)
@@ -1367,6 +1368,61 @@ npm install
 ```
 
 </details>
+
+---
+
+<a id="testes"></a>
+## 🧪 Testes {#testes}
+
+Testes automatizados para verificação de conexões, API e validação de dados. Executáveis manualmente.
+
+### Estrutura
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `tests/azdo-connection.test.js` | Teste de conexão com Azure DevOps (credenciais, WIQL, work items, relations) |
+| `tests/api-endpoints.test.js` | Teste dos endpoints da API (health, features, azdo consolidated, counts-by-month) |
+| `tests/data-validation.test.js` | Validação de estruturas de dados e tipos de resposta |
+| `tests/run-all.js` | Executa todos os testes em sequência |
+
+### Pré-requisitos
+
+1. **Dependências dos testes** (apenas na primeira vez):
+   ```bash
+   cd tests
+   npm install
+   ```
+
+2. **Testes de conexão Azure DevOps**: `backend/.env` com `AZDO_PAT`, `AZDO_ORG`, `AZDO_ROOT_PROJECT`.
+
+3. **Testes de API e validação**: backend rodando em `http://localhost:8000` (ou `API_BASE_URL` no ambiente).
+
+### Uso
+
+**Executar um teste específico:**
+```bash
+node tests/azdo-connection.test.js    # Conexão Azure DevOps
+node tests/api-endpoints.test.js      # Endpoints da API (requer backend)
+node tests/data-validation.test.js    # Validação de dados (requer backend)
+```
+
+**Executar todos os testes:**
+```bash
+node tests/run-all.js
+```
+
+**Variável de ambiente opcional:**
+```bash
+API_BASE_URL=http://localhost:9000 node tests/api-endpoints.test.js
+```
+
+### Resultados (última execução)
+
+| Teste | Resultado | Observação |
+|-------|-----------|------------|
+| Azure DevOps Connection | ✅ 6/6 passou | WIQL, work item, relations |
+| API Endpoints | ✅ 5/5 passou | health, /api, features, consolidated, counts-by-month |
+| Data Validation | ✅ 10/10 passou | Health, consolidated, counts-by-month, tipos |
 
 ---
 
