@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { featuresCountApi, Task } from '../services/api'
 import Tooltip from '../components/Tooltip/Tooltip'
 
 export default function ActiveTasks() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [assignedFilter, setAssignedFilter] = useState<string>('')
   const [stateFilter, setStateFilter] = useState<string>('')
@@ -282,28 +284,17 @@ export default function ActiveTasks() {
               {sortedTasks.map((t: Task) => (
                 <tr
                   key={t.id}
-                  className="hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                  onClick={() => navigate(`/tasks/${t.id}`)}
+                  className="hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <a
-                      href={t.web_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      {t.id}
-                    </a>
+                    <span className="text-sm text-blue-600 dark:text-blue-400 hover:underline">{t.id}</span>
                   </td>
                   <td className="px-6 py-4">
                     <Tooltip content={t.title || ''} position="top">
-                      <a
-                        href={t.web_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium text-gray-900 dark:text-white max-w-md truncate block hover:text-blue-600 dark:hover:text-blue-400"
-                      >
+                      <span className="text-sm font-medium text-gray-900 dark:text-white max-w-md truncate block hover:text-blue-600 dark:hover:text-blue-400">
                         {t.title || 'Sem título'}
-                      </a>
+                      </span>
                     </Tooltip>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{t.state || '-'}</td>

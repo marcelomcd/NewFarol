@@ -162,6 +162,8 @@ const FIELD_NAME_MAP = {
   'Custom.SaldoHoras': 'Saldo de Horas do Projeto',
   'Custom.SituacaoPendenteList': 'Situação de Pendências',
   'Custom.StatusHoras': 'Status das Horas do Projeto',
+  'Custom.DataLiberadaHomologacao': 'Data Liberada para Homologação',
+  'Custom.Type': 'Tipo',
 
   // Campos Microsoft.VSTS.Common
   'Microsoft.VSTS.Common.ActivatedBy': 'Ativado por',
@@ -314,7 +316,7 @@ export function formatWorkItemFields(rawFields) {
     
     // Tratamento especial para campos WEF_*_Kanban.Lane (prefixo dinâmico)
     if (fieldName.startsWith('WEF_') && fieldName.endsWith('_Kanban.Lane')) {
-      displayName = 'Linha do Board';
+      displayName = 'PMO';
     }
 
     // Formata o valor
@@ -420,7 +422,7 @@ export function formatWorkItemFieldsFlat(rawFields) {
     
     // Tratamento especial para campos WEF_*_Kanban.Lane (prefixo dinâmico)
     if (fieldName.startsWith('WEF_') && fieldName.endsWith('_Kanban.Lane')) {
-      displayName = 'Linha do Board';
+      displayName = 'PMO';
     }
 
     // Formata o valor

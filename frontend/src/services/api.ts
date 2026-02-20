@@ -427,6 +427,19 @@ export interface Task {
   responsible?: string | null
 }
 
+export interface TaskDetail extends Omit<Task, 'activity'> {
+  work_item_type: string
+  created_by?: string
+  changed_by?: string
+  area_path?: string
+  iteration_path?: string
+  start_date?: string | null
+  activity?: string
+  description?: string
+  fields_formatted?: Record<string, any>
+  raw_fields_json?: Record<string, any>
+}
+
 export interface UserStory {
   id: number
   title: string
@@ -452,6 +465,10 @@ export const workItemsApi = {
   },
   getTasks: async (params?: { state?: string; assigned_to?: string; overdue_only?: boolean }): Promise<{ tasks: Task[]; count: number }> => {
     const response = await api.get('/work-items/tasks', { params })
+    return response.data
+  },
+  getTask: async (id: number): Promise<TaskDetail> => {
+    const response = await api.get(`/work-items/tasks/${id}`)
     return response.data
   },
   getTasksSummary: async (): Promise<{ total: number; by_state: Record<string, number>; overdue_count: number; by_assigned_to: Record<string, number> }> => {

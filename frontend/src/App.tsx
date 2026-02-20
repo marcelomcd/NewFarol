@@ -11,6 +11,7 @@ import ActiveProjects from './pages/ActiveProjects'
 import CompletedProjects from './pages/CompletedProjects'
 import ActiveTasks from './pages/ActiveTasks'
 import CompletedTasks from './pages/CompletedTasks'
+import TaskDetails from './pages/TaskDetails'
 import ServiceUp from './pages/ServiceUp'
 import ErrorBoundary from './components/ErrorBoundary'
 import { useEffect } from 'react'
@@ -241,6 +242,14 @@ function App() {
             element={
               <AdminOnlyRoute>
                 <CompletedTasks />
+              </AdminOnlyRoute>
+            }
+          />
+          <Route
+            path="/tasks/:id"
+            element={
+              <AdminOnlyRoute>
+                <TaskDetails />
               </AdminOnlyRoute>
             }
           />

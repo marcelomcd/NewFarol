@@ -569,7 +569,8 @@ export default function FeatureDetails() {
               .sort(([a], [b]) => a.localeCompare(b))
               .map(([key, value]) => (
                 <div key={key} className="border-b border-gray-200 dark:border-gray-700 pb-2">
-                  <div className="text-xs font-mono text-gray-600 dark:text-gray-400">{key}</div>
+                  <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">{getFieldLabel(key)}</div>
+                  <div className="text-xs font-mono text-gray-500 dark:text-gray-400">{key}</div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     {typeof value === 'object' ? (
                       <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded mt-1 overflow-x-auto">

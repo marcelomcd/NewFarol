@@ -227,6 +227,172 @@ router.get('/bugs/summary', async (req, res) => {
 });
 
 /**
+ * GET /api/work-items/tasks/summary
+ * Resumo de tasks (deve vir antes de /tasks/:id)
+ */
+router.get('/tasks/summary', async (req, res) => {
+  try {
+    const wiql = new WIQLClient();
+    const query = getTasksQuery(null);
+    const wiqlResult = await wiql.executeWiql(project, query);
+
+    const workItemRefs = wiqlResult.workItems || [];
+    if (workItemRefs.length === 0) {
+      return res.json({
+        total: 0,
+        by_state: {},
+        overdue_count: 0,
+        by_assigned_to: {},
+      });
+    }
+
+    const taskIds = workItemRefs.map(ref => parseInt(ref.id)).filter(id => !isNaN(id));
+    const tasksData = await wiql.getWorkItems(taskIds);
+
+    const OPEN_STATES = ['New', 'Active'];
+    const byState = {};
+    const byAssignedTo = {};
+    let openCount = 0;
+    let overdueCount = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (const task of tasksData) {
+      const fields = task.fields || {};
+      const state = fields['System.State'] || 'Sem Estado';
+      const assignedTo = extractDisplayName(fields['System.AssignedTo']);
+      const isOpen = OPEN_STATES.includes(state);
+
+      byState[state] = (byState[state] || 0) + 1;
+      if (assignedTo) {
+        byAssignedTo[assignedTo] = (byAssignedTo[assignedTo] || 0) + 1;
+      }
+
+      if (isOpen) {
+        openCount++;
+        const targetDateStr = fields['Microsoft.VSTS.Scheduling.TargetDate'] || '';
+        if (targetDateStr) {
+          try {
+            const target = new Date(targetDateStr);
+            target.setHours(0, 0, 0, 0);
+            if (target < today) overdueCount++;
+          } catch (e) { /* ignora */ }
+        }
+      }
+    }
+
+    res.json({
+      total: openCount,
+      by_state: byState,
+      overdue_count: overdueCount,
+      by_assigned_to: byAssignedTo,
+    });
+  } catch (error) {
+    console.error('[ERROR] /api/work-items/tasks/summary:', error);
+    res.status(500).json({
+      error: error.message || 'Erro ao buscar resumo de tasks',
+      ...(process.env.DEBUG === 'true' && { stack: error.stack }),
+    });
+  }
+});
+
+/**
+ * GET /api/work-items/tasks/:id
+ * Detalhes de uma task específica
+ */
+router.get('/tasks/:id', async (req, res) => {
+  try {
+    const taskId = parseInt(req.params.id, 10);
+    if (isNaN(taskId)) {
+      return res.status(400).json({ error: 'ID da task inválido' });
+    }
+
+    const wiql = new WIQLClient();
+    const workItems = await wiql.getWorkItems([taskId]);
+
+    if (workItems.length === 0) {
+      return res.status(404).json({ error: 'Task não encontrada' });
+    }
+
+    const task = workItems[0];
+    const fields = task.fields || {};
+    const workItemType = (fields['System.WorkItemType'] || '').toLowerCase();
+
+    if (workItemType !== 'task') {
+      return res.status(404).json({ error: 'Work item não é uma Task' });
+    }
+
+    const assignedTo = extractDisplayName(fields['System.AssignedTo']);
+    const parentId = extractParentId(task.relations);
+
+    let client = null;
+    let responsible = null;
+
+    if (parentId) {
+      const parentsData = await wiql.getWorkItems([parentId]);
+      if (parentsData.length > 0) {
+        const parentFields = parentsData[0].fields || {};
+        const areaPath = parentFields['System.AreaPath'];
+        const iterationPath = parentFields['System.IterationPath'];
+        const parentType = (parentFields['System.WorkItemType'] || '').toLowerCase();
+        client = extractClientName(areaPath, iterationPath);
+        responsible = extractResponsavelCliente(parentFields['Custom.ResponsavelCliente']);
+
+        if (!responsible && parentType === 'user story') {
+          const featureId = extractParentId(parentsData[0].relations);
+          if (featureId) {
+            const featuresData = await wiql.getWorkItems([featureId]);
+            if (featuresData.length > 0) {
+              responsible = extractResponsavelCliente(featuresData[0].fields?.['Custom.ResponsavelCliente']);
+            }
+          }
+        }
+      }
+    }
+
+    const formattedFields = formatWorkItemFieldsFlat(fields);
+    const filteredRawFields = filterRawFields(fields);
+
+    const taskDetail = {
+      id: task.id,
+      title: fields['System.Title'] || '',
+      state: fields['System.State'] || '',
+      work_item_type: 'Task',
+      assigned_to: assignedTo,
+      created_date: fields['System.CreatedDate'] || '',
+      changed_date: fields['System.ChangedDate'] || '',
+      created_by: extractDisplayName(fields['System.CreatedBy']),
+      changed_by: extractDisplayName(fields['System.ChangedBy']),
+      area_path: fields['System.AreaPath'] || '',
+      iteration_path: fields['System.IterationPath'] || '',
+      target_date: fields['Microsoft.VSTS.Scheduling.TargetDate'] || null,
+      start_date: fields['Microsoft.VSTS.Scheduling.StartDate'] || null,
+      remaining_work: fields['Microsoft.VSTS.Scheduling.RemainingWork'] || null,
+      completed_work: fields['Microsoft.VSTS.Scheduling.CompletedWork'] || null,
+      original_estimate: fields['Microsoft.VSTS.Scheduling.OriginalEstimate'] || null,
+      activity: fields['Microsoft.VSTS.Common.Activity'] || '',
+      description: fields['System.Description'] || '',
+      client,
+      responsible,
+      fields_formatted: formattedFields,
+      raw_fields_json: filteredRawFields,
+      web_url: task._links?.html?.href || '',
+    };
+
+    res.json(taskDetail);
+  } catch (error) {
+    console.error('[ERROR] /api/work-items/tasks/:id:', error);
+    if (error.message?.includes('429') || error.message?.toLowerCase?.()?.includes('rate limit')) {
+      return res.status(429).json({ error: 'Rate limit do Azure DevOps atingido. Tente novamente em alguns segundos.' });
+    }
+    res.status(500).json({
+      error: error.message || 'Erro ao buscar task',
+      ...(process.env.DEBUG === 'true' && { stack: error.stack }),
+    });
+  }
+});
+
+/**
  * GET /api/work-items/tasks
  * Lista tasks
  */
@@ -375,76 +541,6 @@ router.get('/tasks', async (req, res) => {
     console.error('[ERROR] /api/work-items/tasks:', error);
     res.status(500).json({
       error: error.message || 'Erro ao buscar tasks',
-      ...(process.env.DEBUG === 'true' && { stack: error.stack }),
-    });
-  }
-});
-
-/**
- * GET /api/work-items/tasks/summary
- * Resumo de tasks
- */
-router.get('/tasks/summary', async (req, res) => {
-  try {
-    const wiql = new WIQLClient();
-    const query = getTasksQuery(null);
-    const wiqlResult = await wiql.executeWiql(project, query);
-
-    const workItemRefs = wiqlResult.workItems || [];
-    if (workItemRefs.length === 0) {
-      return res.json({
-        total: 0,
-        by_state: {},
-        overdue_count: 0,
-        by_assigned_to: {},
-      });
-    }
-
-    const taskIds = workItemRefs.map(ref => parseInt(ref.id)).filter(id => !isNaN(id));
-    const tasksData = await wiql.getWorkItems(taskIds);
-
-    const OPEN_STATES = ['New', 'Active'];
-    const byState = {};
-    const byAssignedTo = {};
-    let openCount = 0;
-    let overdueCount = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    for (const task of tasksData) {
-      const fields = task.fields || {};
-      const state = fields['System.State'] || 'Sem Estado';
-      const assignedTo = extractDisplayName(fields['System.AssignedTo']);
-      const isOpen = OPEN_STATES.includes(state);
-
-      byState[state] = (byState[state] || 0) + 1;
-      if (assignedTo) {
-        byAssignedTo[assignedTo] = (byAssignedTo[assignedTo] || 0) + 1;
-      }
-
-      if (isOpen) {
-        openCount++;
-        const targetDateStr = fields['Microsoft.VSTS.Scheduling.TargetDate'] || '';
-        if (targetDateStr) {
-          try {
-            const target = new Date(targetDateStr);
-            target.setHours(0, 0, 0, 0);
-            if (target < today) overdueCount++;
-          } catch (e) { /* ignora */ }
-        }
-      }
-    }
-
-    res.json({
-      total: openCount,
-      by_state: byState,
-      overdue_count: overdueCount,
-      by_assigned_to: byAssignedTo,
-    });
-  } catch (error) {
-    console.error('[ERROR] /api/work-items/tasks/summary:', error);
-    res.status(500).json({
-      error: error.message || 'Erro ao buscar resumo de tasks',
       ...(process.env.DEBUG === 'true' && { stack: error.stack }),
     });
   }

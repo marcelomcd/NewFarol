@@ -90,6 +90,7 @@ export const RENOMEAR_CAMPOS: { [key: string]: string } = {
   
   // Outros
   "objetivo": "Objetivo",
+  "type": "Tipo",
   "pausetime": "Data de Parada",
   "starttime": "Data de Início",
   "emfasedeencerramentotimee": "Em Fase de Encerramento",
@@ -181,6 +182,10 @@ export function normalizeFieldKey(key: string): string {
  * Obtém o nome amigável do campo
  */
 export function getFieldLabel(key: string): string {
+  // WEF_*_Kanban.Lane = PMO (mesmo conceito que AssignedTo na Feature)
+  if (/^WEF_.*_Kanban\.Lane$/i.test(key)) {
+    return 'PMO'
+  }
   const normalized = normalizeFieldKey(key)
   return RENOMEAR_CAMPOS[normalized] || key.split('.').pop() || key
 }

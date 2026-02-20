@@ -259,7 +259,7 @@ export default function Navbar({ farolStatus: propFarolStatus }: NavbarProps) {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`relative px-2.5 py-2 rounded-lg transition-all duration-300 font-medium text-xs lg:text-sm whitespace-nowrap ${
+                  className={`relative px-2.5 py-2 rounded-lg transition-all duration-300 font-medium text-xs lg:text-sm whitespace-nowrap text-center ${
                     isActive
                       ? 'bg-white/25 backdrop-blur-sm text-white font-semibold shadow-lg'
                       : 'hover:bg-white/15 text-white/90 hover:text-white'
@@ -364,7 +364,7 @@ export default function Navbar({ farolStatus: propFarolStatus }: NavbarProps) {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`block px-4 py-3 rounded-lg transition-all duration-200 ${
+                  className={`block px-4 py-3 rounded-lg transition-all duration-200 text-center ${
                     isActive
                       ? 'bg-white/25 backdrop-blur-sm font-semibold'
                       : 'hover:bg-white/15'
