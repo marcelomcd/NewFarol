@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import FeaturesList from './components/FeaturesList/FeaturesList'
 import FeatureDetails from './pages/FeatureDetails'
@@ -9,6 +9,8 @@ import Login from './pages/Login'
 import Navbar from './components/Navbar/Navbar'
 import ActiveProjects from './pages/ActiveProjects'
 import CompletedProjects from './pages/CompletedProjects'
+import ActiveTasks from './pages/ActiveTasks'
+import CompletedTasks from './pages/CompletedTasks'
 import ServiceUp from './pages/ServiceUp'
 import ErrorBoundary from './components/ErrorBoundary'
 import { useEffect } from 'react'
@@ -156,13 +158,20 @@ function isEmbeddedInIframe(): boolean {
 
 function App() {
   const { isAuthenticated } = useAuth()
+  const location = useLocation()
   const showNavbar = isAuthenticated && !isEmbeddedInIframe()
+  const isServiceUpPage = location.pathname === '/serviceup'
+  const mainClassName = isAuthenticated
+    ? isServiceUpPage
+      ? 'w-full min-h-[calc(100vh-4rem)]'
+      : 'w-full px-2 py-8'
+    : ''
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-900 transition-colors duration-300">
       {showNavbar && <Navbar />}
       
-      <main className={isAuthenticated ? "w-full px-2 py-8" : ""}>
+      <main className={mainClassName}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -216,6 +225,22 @@ function App() {
             element={
               <AdminOnlyRoute>
                 <CompletedProjects />
+              </AdminOnlyRoute>
+            }
+          />
+          <Route
+            path="/tasks/active"
+            element={
+              <AdminOnlyRoute>
+                <ActiveTasks />
+              </AdminOnlyRoute>
+            }
+          />
+          <Route
+            path="/tasks/completed"
+            element={
+              <AdminOnlyRoute>
+                <CompletedTasks />
               </AdminOnlyRoute>
             }
           />

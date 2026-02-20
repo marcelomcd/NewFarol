@@ -148,6 +148,8 @@ export default function Navbar({ farolStatus: propFarolStatus }: NavbarProps) {
     { path: '/serviceup', label: 'Painel Service UP', serviceUpOnly: true },
     { path: '/projects/active', label: 'Projetos Ativos', adminOnly: true },
     { path: '/projects/completed', label: 'Projetos Concluídos', adminOnly: true },
+    { path: '/tasks/active', label: "Task's Ativas", adminOnly: true },
+    { path: '/tasks/completed', label: "Task's Concluídas", adminOnly: true },
     { path: '/reports', label: 'Relatórios', adminOnly: true },
   ].filter(link => {
     if (link.adminOnly) return isAuthenticated && user?.is_admin
@@ -229,9 +231,9 @@ export default function Navbar({ farolStatus: propFarolStatus }: NavbarProps) {
             {/* Logo Quali IT */}
             <div className="relative flex-shrink-0">
               <img 
-                src="/logo-qualiit.svg" 
+                src="/logo-qualiit.png" 
                 alt="Quali IT Logo" 
-                className="h-8 w-auto opacity-90 group-hover:opacity-100 transition-opacity duration-300"
+                className="h-10 w-auto opacity-95 group-hover:opacity-100 transition-opacity duration-300"
               />
             </div>
             
