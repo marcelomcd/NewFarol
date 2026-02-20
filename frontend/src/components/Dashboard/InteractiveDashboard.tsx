@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { api, azdoApi, featuresApi, featuresCountApi, workItemsApi, Feature } from '../../services/api'
+import { azdoApi, featuresApi, featuresCountApi, workItemsApi, Feature } from '../../services/api'
 import {
   BarChart,
   Bar,
@@ -75,6 +75,7 @@ export default function InteractiveDashboard() {
   const [selectedClient, setSelectedClient] = useState<string | null>(null)
   const [selectedState, setSelectedState] = useState<string | null>(null)
   const [selectedPMO, setSelectedPMO] = useState<string | null>(null)
+  const [selectedResponsavel, setSelectedResponsavel] = useState<string | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth)
   const [selectedYear, setSelectedYear] = useState<number>(currentYear)
 
@@ -92,7 +93,6 @@ export default function InteractiveDashboard() {
 
   const [clientsModal, setClientsModal] = useState<{ isOpen: boolean }>({ isOpen: false })
   const [pmosModal, setPMOsModal] = useState<{ isOpen: boolean }>({ isOpen: false })
-  const [isExporting, setIsExporting] = useState(false)
   const [evolucaoEntregasMeses, setEvolucaoEntregasMeses] = useState(6)
   const [evolucaoTasksMeses, setEvolucaoTasksMeses] = useState(6)
   const [closedByDayDias, setClosedByDayDias] = useState(30)
@@ -304,8 +304,11 @@ export default function InteractiveDashboard() {
     if (selectedPMO) {
       items = items.filter((item) => extractPMO(item) === selectedPMO)
     }
+    if (selectedResponsavel) {
+      items = items.filter((item) => extractResponsavelCliente(item) === selectedResponsavel)
+    }
     return items
-  }, [baseItems, selectedFarol, selectedClient, selectedState, selectedPMO])
+  }, [baseItems, selectedFarol, selectedClient, selectedState, selectedPMO, selectedResponsavel])
 
   // Itens ativos (exclui apenas Encerrado/Closed)
   const activeItems = useMemo(() => {
@@ -315,7 +318,7 @@ export default function InteractiveDashboard() {
     })
   }, [filteredItems])
 
-  const hasFilters = !!(selectedFarol || selectedClient || selectedState || selectedPMO)
+  const hasFilters = !!(selectedFarol || selectedClient || selectedState || selectedPMO || selectedResponsavel)
 
   // Cards principais
   // Total de Projetos = Closed (316) + Em Aberto (147) = 463
@@ -459,6 +462,13 @@ export default function InteractiveDashboard() {
     return Array.from(pmos).sort()
   }, [filteredItems])
 
+  const uniqueResponsibles = useMemo(() => {
+    const responsibles = new Set(
+      baseItems.map((item) => extractResponsavelCliente(item)).filter((r) => r && r !== 'Não atribuído'),
+    )
+    return Array.from(responsibles).sort()
+  }, [baseItems])
+
   // Projetos atrasados: TargetDate < hoje
   const overdueProjects = useMemo(() => {
     const today = new Date()
@@ -539,13 +549,16 @@ export default function InteractiveDashboard() {
         if (selectedPMO) {
           items = items.filter((item) => extractPMO(item) === selectedPMO)
         }
+        if (selectedResponsavel) {
+          items = items.filter((item) => extractResponsavelCliente(item) === selectedResponsavel)
+        }
         return items
       }
       return openProjects
     }
     // Fallback: usar filteredItems (que já são apenas projetos abertos)
     return filteredItems
-  }, [consolidatedAzdoData, filteredItems, hasFilters, selectedFarol, selectedClient, selectedState, selectedPMO])
+  }, [consolidatedAzdoData, filteredItems, hasFilters, selectedFarol, selectedClient, selectedState, selectedPMO, selectedResponsavel])
 
   const pmoCounts = useMemo(() => {
     const counts = allItemsForPMOCount.reduce((acc: Record<string, number>, item) => {
@@ -838,33 +851,6 @@ export default function InteractiveDashboard() {
     setDrillDownModal({ isOpen: true, title, items, filterLabel })
   }
 
-  const handleExportExcel = async () => {
-    setIsExporting(true)
-    try {
-      const params = new URLSearchParams()
-      if (selectedFarol) params.append('farol_status', selectedFarol)
-      if (selectedClient) params.append('client', selectedClient)
-      if (selectedState) params.append('state', selectedState)
-      if (selectedPMO) params.append('pmo', selectedPMO)
-      params.append('cliente_nome', selectedClient || 'TODOS')
-      params.append('is_admin', 'true')
-
-      const response = await api.post(`/features/export?${params.toString()}`, {}, { responseType: 'blob' })
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `Status_Report_${selectedClient || 'TODOS'}_${format(new Date(), 'yyyyMMdd')}.xlsx`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-    } catch (error) {
-      console.error('Erro ao exportar:', error)
-      alert('Erro ao exportar Excel')
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
   if (featuresLoading && baseItems.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -886,7 +872,7 @@ export default function InteractiveDashboard() {
   }
 
   return (
-    <div className="space-y-6 px-2 py-6 animate-fadeIn">
+    <div className="space-y-6 px-2 pt-2 pb-6 animate-fadeIn">
       {/* Alerta de fonte de dados (evita "números inflados" por fallback do DB) */}
       {!consolidatedLoading && consolidatedError && (
         <div className="glass dark:glass-dark p-4 rounded-lg border border-red-300/40 dark:border-red-500/30">
@@ -904,35 +890,6 @@ export default function InteractiveDashboard() {
           <span className="text-4xl">📊</span>
           <span>Dashboard Interativo</span>
         </h1>
-        <div className="flex gap-2">
-          <button
-            onClick={handleExportExcel}
-            disabled={isExporting}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all hover-lift disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isExporting ? (
-              <>
-                <div className="spinner w-4 h-4"></div>
-                <span>Exportando...</span>
-              </>
-            ) : (
-              <>
-                <span>Exportar Excel</span>
-              </>
-            )}
-          </button>
-          <button
-            onClick={() => {
-              setSelectedFarol(null)
-              setSelectedClient(null)
-              setSelectedState(null)
-              setSelectedPMO(null)
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all hover-lift flex items-center gap-2"
-          >
-            <span>Limpar Filtros</span>
-          </button>
-        </div>
       </div>
 
       {/* Layout: Semáforo à esquerda, Filtros e Cards à direita */}
@@ -940,9 +897,8 @@ export default function InteractiveDashboard() {
         {/* Coluna esquerda: Semáforo */}
         <div className="w-fit">
           <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all flex flex-col w-fit min-w-fit h-full">
-            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2 whitespace-nowrap">
-              <span>🚦</span>
-              <span>Status do Farol</span>
+            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white whitespace-nowrap">
+              Status do Farol
             </h2>
             <div className="flex flex-col items-center justify-center gap-4 flex-1">
               <TrafficLight
@@ -986,19 +942,20 @@ export default function InteractiveDashboard() {
         {/* Coluna direita: Filtros e Cards */}
         <div className="flex flex-col lg:h-full justify-between gap-4">
           {/* Filtros */}
-          <div className="glass dark:glass-dark p-5 rounded-lg grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="glass dark:glass-dark p-5 rounded-lg grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 items-end">
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Farol</label>
+              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Responsável</label>
               <select
-                value={selectedFarol || ''}
-                onChange={(e) => setSelectedFarol((e.target.value as FarolStatus) || null)}
+                value={selectedResponsavel || ''}
+                onChange={(e) => setSelectedResponsavel(e.target.value || null)}
                 className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
               >
                 <option value="">Todos</option>
-                <option value="Sem Problema">Sem Problema</option>
-                <option value="Com Problema">Com Problema</option>
-                <option value="Problema Crítico">Problema Crítico</option>
-                <option value="Indefinido">Indefinido</option>
+                {uniqueResponsibles.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -1058,6 +1015,22 @@ export default function InteractiveDashboard() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="flex items-end">
+              {hasFilters && (
+                <button
+                  onClick={() => {
+                    setSelectedFarol(null)
+                    setSelectedClient(null)
+                    setSelectedState(null)
+                    setSelectedPMO(null)
+                    setSelectedResponsavel(null)
+                  }}
+                  className="text-xs px-2 py-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors whitespace-nowrap"
+                >
+                  Limpar Filtros
+                </button>
+              )}
             </div>
           </div>
 
@@ -1792,5 +1765,3 @@ export default function InteractiveDashboard() {
     </div>
   )
 }
-
-

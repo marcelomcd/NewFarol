@@ -113,6 +113,18 @@ export function getUserClientFromEmail(email) {
 }
 
 /**
+ * Verifica se o usuário tem acesso a dados (admin ou domínio de cliente conhecido).
+ * Domínios desconhecidos (ex: @hotmail.com) retornam false → devem ver zeros nos cards.
+ */
+export function hasValidClientAccess(token) {
+  const email = getUserEmailFromToken(token);
+  if (!email) return true; // sem token: manter comportamento atual (compatibilidade)
+  if (isQualiItAdmin(email)) return true;
+  const client = getUserClientFromEmail(email);
+  return client !== null;
+}
+
+/**
  * Obtém o filtro de cliente baseado no token JWT
  */
 export function getUserClientFilter(token) {

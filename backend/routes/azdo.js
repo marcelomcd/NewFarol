@@ -6,7 +6,7 @@
 import express from 'express';
 import { WIQLClient } from '../utils/wiqlClient.js';
 import { extractClientName, normalizeFarolStatus } from '../utils/normalization.js';
-import { getUserClientFilter } from '../utils/auth.js';
+import { getUserClientFilter, hasValidClientAccess } from '../utils/auth.js';
 import cache from '../utils/ttlCache.js';
 import dotenv from 'dotenv';
 
@@ -202,11 +202,58 @@ WHERE
  * GET /api/azdo/consolidated
  * Endpoint consolidado com todos os indicadores do Azure DevOps
  */
+/**
+ * Resposta vazia para usuários com domínio desconhecido (ex: @hotmail.com).
+ * Mantém os cards exibindo zeros conforme requisito.
+ */
+function buildEmptyConsolidatedResponse(daysNearDeadline) {
+  const emptyList = [];
+  const emptyStatusDetails = {};
+  return {
+    meta: {
+      org: process.env.AZDO_ORG || 'qualiit',
+      project,
+      api_version: process.env.AZDO_API_VERSION || '7.0',
+      generated_at: new Date().toISOString(),
+      near_deadline_days: daysNearDeadline,
+      client_filter: null,
+    },
+    cache: { hit: false, ttlSeconds: 0 },
+    totals: {
+      total_projects: 0,
+      open_projects: 0,
+      overdue_projects: 0,
+      near_deadline_projects: 0,
+      closed_projects: 0,
+    },
+    lists: {
+      total_projects: emptyList,
+      open_projects: emptyList,
+      overdue_projects: emptyList,
+      near_deadline_projects: emptyList,
+      closed_projects: emptyList,
+    },
+    clients: {
+      epics: emptyList,
+      count: 0,
+      summary: [],
+      unique_count: 0,
+    },
+    pmos: { items: emptyList, count: 0 },
+    features_by_status: emptyStatusDetails,
+  };
+}
+
 router.get('/consolidated', async (req, res) => {
   try {
     const { token, days_near_deadline = 7, cache_seconds = 10 } = req.query;
     const daysNearDeadline = parseInt(days_near_deadline) || 7;
     const cacheSeconds = parseInt(cache_seconds) || 10;
+
+    // Domínios desconhecidos (ex: @hotmail.com) veem zeros
+    if (!hasValidClientAccess(token)) {
+      return res.json(buildEmptyConsolidatedResponse(daysNearDeadline));
+    }
 
     // Filtro por cliente (regra do sistema)
     const userClient = getUserClientFilter(token);
@@ -493,6 +540,163 @@ router.get('/consolidated', async (req, res) => {
     console.error('[ERROR] /api/azdo/consolidated:', error);
     res.status(500).json({
       error: error.message || 'Erro ao buscar dados consolidados',
+      ...(process.env.DEBUG === 'true' && { stack: error.stack }),
+    });
+  }
+});
+
+/**
+ * Formata Task do Azure para estrutura compatível com DrillDownModal (Feature-like)
+ */
+function formatTaskForModal(wi) {
+  const fields = wi.fields || {};
+  const webUrl = wi._links?.html?.href || '';
+  return {
+    id: wi.id,
+    title: fields['System.Title'] || '',
+    state: fields['System.State'] || '',
+    changed_date: fields['System.ChangedDate'] || '',
+    created_date: fields['System.CreatedDate'] || '',
+    assigned_to: fields['System.AssignedTo']?.displayName || fields['System.AssignedTo'] || '',
+    raw_fields_json: {
+      work_item_type: 'Task',
+      web_url: webUrl,
+    },
+  };
+}
+
+/**
+ * GET /api/azdo/counts-by-month
+ * Retorna contagens de tasks abertas/fechadas no mês (projetos calculados no frontend).
+ * Query param include_items=true retorna tasks_opened_items e tasks_closed_items para drill-down.
+ */
+router.get('/counts-by-month', async (req, res) => {
+  try {
+    const month = parseInt(req.query.month, 10);
+    const year = parseInt(req.query.year, 10);
+    const includeItems = req.query.include_items === 'true' || req.query.include_items === true;
+
+    if (!month || !year || month < 1 || month > 12) {
+      return res.status(400).json({
+        error: 'Parâmetros month (1-12) e year obrigatórios',
+      });
+    }
+
+    // Formato yyyy-MM-dd evita problemas de timezone. Usar < primeiro dia do mês seguinte.
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    const startStr = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endExclusiveStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+
+    const areaPath = `${project}\\Quali IT ! Gestao de Projetos`;
+    const wiql = new WIQLClient();
+
+    // Tasks criadas no mês (scope: mesma área das Features)
+    const tasksCreatedQuery = `
+SELECT [System.Id]
+FROM workitems
+WHERE
+  [System.TeamProject] = '${project}'
+  AND [System.WorkItemType] = 'Task'
+  AND [System.AreaPath] UNDER '${areaPath.replace(/'/g, "''")}'
+  AND [System.CreatedDate] >= '${startStr}'
+  AND [System.CreatedDate] < '${endExclusiveStr}'
+`.trim();
+
+    // Tasks fechadas no mês (Closed, Done, Resolved - conforme processo Agile/Scrum/CMMI)
+    const tasksClosedQuery = `
+SELECT [System.Id]
+FROM workitems
+WHERE
+  [System.TeamProject] = '${project}'
+  AND [System.WorkItemType] = 'Task'
+  AND [System.AreaPath] UNDER '${areaPath.replace(/'/g, "''")}'
+  AND [System.State] IN ('Closed', 'Done', 'Resolved')
+  AND [System.ChangedDate] >= '${startStr}'
+  AND [System.ChangedDate] < '${endExclusiveStr}'
+`.trim();
+
+    let tasks_opened = 0;
+    let tasks_closed = 0;
+    let tasks_opened_items = [];
+    let tasks_closed_items = [];
+    let createdRefs = [];
+    let closedRefs = [];
+
+    const runQueries = async (createdQuery, closedQuery) => {
+      const [createdResult, closedResult] = await Promise.all([
+        wiql.executeWiql(project, createdQuery),
+        wiql.executeWiql(project, closedQuery),
+      ]);
+      createdRefs = createdResult.workItems || [];
+      closedRefs = closedResult.workItems || [];
+      tasks_opened = createdRefs.length;
+      tasks_closed = closedRefs.length;
+    };
+
+    try {
+      await runQueries(tasksCreatedQuery, tasksClosedQuery);
+    } catch (wiqlErr) {
+      console.warn('[azdo/counts-by-month] WIQL com AreaPath falhou, tentando sem:', wiqlErr.message);
+      const tasksCreatedFallback = `
+SELECT [System.Id]
+FROM workitems
+WHERE
+  [System.TeamProject] = '${project}'
+  AND [System.WorkItemType] = 'Task'
+  AND [System.CreatedDate] >= '${startStr}'
+  AND [System.CreatedDate] < '${endExclusiveStr}'
+`.trim();
+      const tasksClosedFallback = `
+SELECT [System.Id]
+FROM workitems
+WHERE
+  [System.TeamProject] = '${project}'
+  AND [System.WorkItemType] = 'Task'
+  AND [System.State] IN ('Closed', 'Done', 'Resolved')
+  AND [System.ChangedDate] >= '${startStr}'
+  AND [System.ChangedDate] < '${endExclusiveStr}'
+`.trim();
+      await runQueries(tasksCreatedFallback, tasksClosedFallback);
+    }
+
+    if (includeItems && (createdRefs.length > 0 || closedRefs.length > 0)) {
+      const createdIds = createdRefs.map((r) => parseInt(r.id)).filter((id) => !isNaN(id));
+      const closedIds = closedRefs.map((r) => parseInt(r.id)).filter((id) => !isNaN(id));
+      const allIds = [...new Set([...createdIds, ...closedIds])];
+
+      if (allIds.length > 0) {
+        const taskFields = [
+          'System.Id', 'System.Title', 'System.State', 'System.CreatedDate', 'System.ChangedDate',
+          'System.AssignedTo',
+        ];
+        const allItems = await wiql.getWorkItems(allIds, taskFields);
+        const itemsById = new Map(allItems.map((wi) => [wi.id, wi]));
+        const createdSet = new Set(createdIds);
+        const closedSet = new Set(closedIds);
+
+        for (const id of createdIds) {
+          const wi = itemsById.get(id);
+          if (wi) tasks_opened_items.push(formatTaskForModal(wi));
+        }
+        for (const id of closedIds) {
+          const wi = itemsById.get(id);
+          if (wi) tasks_closed_items.push(formatTaskForModal(wi));
+        }
+      }
+    }
+
+    const payload = { month, year, tasks_opened, tasks_closed };
+    if (includeItems) {
+      payload.tasks_opened_items = tasks_opened_items;
+      payload.tasks_closed_items = tasks_closed_items;
+    }
+
+    res.json(payload);
+  } catch (error) {
+    console.error('[ERROR] /api/azdo/counts-by-month:', error);
+    res.status(500).json({
+      error: error.message || 'Erro ao buscar contagens por mês',
       ...(process.env.DEBUG === 'true' && { stack: error.stack }),
     });
   }
