@@ -135,7 +135,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     const returnOrigin = origin ? `?return_origin=${encodeURIComponent(origin)}` : ''
-    window.location.href = `/api/auth/login${returnOrigin}`
+    // Redireciona para o backend diretamente (evita 404 quando proxy falha)
+    const apiBase = import.meta.env.VITE_API_BASE_URL
+      ?? (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:8000'
+        : '')
+    const base = apiBase || (typeof window !== 'undefined' ? window.location.origin : '')
+    window.location.href = `${base}/api/auth/login${returnOrigin}`
   }
 
   const devLogin = async () => {
