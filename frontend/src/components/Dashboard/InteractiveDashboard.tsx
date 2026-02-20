@@ -782,20 +782,17 @@ export default function InteractiveDashboard() {
     const { cx, cy, payload } = props || {}
     const iso = payload?.isoDate
     if (!cx || !cy) return null
+    const handleClick = (e: React.MouseEvent) => {
+      e.stopPropagation()
+      if (iso) handleClosedDayClick(iso)
+    }
     return (
-      <circle
-        cx={cx}
-        cy={cy}
-        r={8}
-        fill={COLORS.primary}
-        stroke="#fff"
-        strokeWidth={2}
-        style={{ cursor: 'pointer' }}
-        onClick={(e: React.MouseEvent) => {
-          e.stopPropagation()
-          if (iso) handleClosedDayClick(iso)
-        }}
-      />
+      <g onClick={handleClick} style={{ cursor: 'pointer' }}>
+        {/* Área de clique ampliada (invisível) - cobre toda a bolinha e entorno */}
+        <circle cx={cx} cy={cy} r={20} fill="transparent" />
+        {/* Bolinha visível */}
+        <circle cx={cx} cy={cy} r={8} fill={COLORS.primary} stroke="#fff" strokeWidth={2} pointerEvents="none" />
+      </g>
     )
   }
 
