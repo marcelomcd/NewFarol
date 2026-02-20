@@ -96,6 +96,7 @@ export default function InteractiveDashboard() {
   const [evolucaoEntregasMeses, setEvolucaoEntregasMeses] = useState(6)
   const [evolucaoTasksMeses, setEvolucaoTasksMeses] = useState(6)
   const [closedByDayDias, setClosedByDayDias] = useState(30)
+  const [responsaveisListExpanded, setResponsaveisListExpanded] = useState(false)
 
   // Fonte “DB” (pode falhar — não pode derrubar o dashboard)
   const { data: featuresData, isLoading: featuresLoading } = useQuery({
@@ -1687,34 +1688,6 @@ export default function InteractiveDashboard() {
               />
             </BarChart>
           </ResponsiveContainer>
-
-          {/* Lista completa (para quando não cabe tudo no gráfico) */}
-          <div className="mt-4 glass dark:glass-dark p-4 rounded-lg">
-            <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              Todos os PMOs (exceto top 10) ({Math.max(0, pmoCounts.length - Math.min(10, pmoCounts.length))})
-            </div>
-            <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
-              {(() => {
-                const top = new Set(pmoCounts.slice(0, 10).map((x) => x.name))
-                return pmoCounts.filter((p) => !top.has(p.name))
-              })().map((p) => (
-                <button
-                  key={p.name}
-                  className="w-full text-left glass dark:glass-dark px-3 py-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
-                  onClick={() => {
-                    const items = filteredItems.filter((item) => extractPMO(item) === p.name)
-                    if (items.length > 0) openDrillDown(`Projetos do PMO: ${p.name}`, items as Feature[], `PMO: ${p.name}`)
-                    else setSelectedPMO(selectedPMO === p.name ? null : p.name)
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-800 dark:text-gray-100 truncate">{p.name}</span>
-                    <span className="text-sm font-bold text-purple-700 dark:text-purple-300">{p.value}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
@@ -1741,32 +1714,44 @@ export default function InteractiveDashboard() {
             </BarChart>
           </ResponsiveContainer>
 
-          {/* Lista completa (para quando não cabe tudo no gráfico) */}
-          <div className="mt-4 glass dark:glass-dark p-4 rounded-lg">
-            <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              Todos os responsáveis (exceto top 10) ({Math.max(0, responsibleCounts.length - Math.min(10, responsibleCounts.length))})
-            </div>
-            <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
-              {(() => {
-                const top = new Set(responsibleCounts.slice(0, 10).map((x) => x.name))
-                return responsibleCounts.filter((r) => !top.has(r.name))
-              })().map((r) => (
+          {/* Lista completa (encolhível por padrão para evitar sobreposição com rótulos do gráfico) */}
+          {(() => {
+            const top = new Set(responsibleCounts.slice(0, 10).map((x) => x.name))
+            const rest = responsibleCounts.filter((r) => !top.has(r.name))
+            const count = rest.length
+            if (count === 0) return null
+            return (
+              <div className="mt-8 glass dark:glass-dark p-4 rounded-lg">
                 <button
-                  key={r.name}
-                  className="w-full text-left glass dark:glass-dark px-3 py-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
-                  onClick={() => {
-                    const items = activeItems.filter((item) => extractResponsavelCliente(item) === r.name)
-                    if (items.length > 0) openDrillDown(`Features do Responsável: ${r.name}`, items as Feature[], `Responsável: ${r.name}`)
-                  }}
+                  type="button"
+                  onClick={() => setResponsaveisListExpanded((prev) => !prev)}
+                  className="w-full flex items-center justify-between text-left text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-800 dark:text-gray-100 truncate">{r.name}</span>
-                    <span className="text-sm font-bold text-green-700 dark:text-green-300">{r.value}</span>
-                  </div>
+                  <span>Todos os responsáveis (exceto top 10) ({count})</span>
+                  <span className="text-lg leading-none" aria-hidden="true">{responsaveisListExpanded ? '▼' : '▶'}</span>
                 </button>
-              ))}
-            </div>
-          </div>
+                {responsaveisListExpanded && (
+                  <div className="mt-2 max-h-64 overflow-y-auto space-y-2 pr-2">
+                    {rest.map((r) => (
+                      <button
+                        key={r.name}
+                        className="w-full text-left glass dark:glass-dark px-3 py-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                        onClick={() => {
+                          const items = activeItems.filter((item) => extractResponsavelCliente(item) === r.name)
+                          if (items.length > 0) openDrillDown(`Features do Responsável: ${r.name}`, items as Feature[], `Responsável: ${r.name}`)
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-800 dark:text-gray-100 truncate">{r.name}</span>
+                          <span className="text-sm font-bold text-green-700 dark:text-green-300">{r.value}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </div>
 

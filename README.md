@@ -71,6 +71,8 @@ O **NewFarol** é uma plataforma completa e moderna para visualização e gestã
 
 - **Métricas em Tempo Real**: Visualização instantânea de projetos, status e faróis
 - **Gráficos Dinâmicos**: Análise visual de dados com Recharts
+  - **Projetos por PMO**: Barras horizontais com top 10 PMOs (lista "exceto top 10" removida — prevê-se que não ultrapasse 10 PMOs)
+  - **Projetos por Responsável**: Barras verticais com top 10 + lista encolhível "Todos os responsáveis (exceto top 10)" (expansível ao clicar). Contagem e modal consideram apenas projetos em aberto (consistência entre número exibido e itens no drill-down)
 - **Filtros Avançados**: Por cliente, PMO, estado, farol e período
 - **Exportação para Excel**: Relatórios completos em formato .xlsx
 - **Modo Escuro/Claro**: Interface adaptável com glassmorphism
@@ -551,8 +553,8 @@ Resumo: **app single-tenant (só Quali IT) + convidados B2B** = sistema é seu, 
 - **Cards de Métricas**: Total de projetos, em aberto, atrasados, próximos do prazo
 - **Gráficos Interativos**: 
   - Distribuição por Status (Pizza)
-  - Projetos por PMO (Barras)
-  - Projetos por Responsável (Barras)
+  - Projetos por PMO (Barras horizontais, top 10 — sem lista "exceto top 10")
+  - Projetos por Responsável (Barras verticais, top 10 + lista encolhível/expansível com todos os demais; contagem e modal exibem apenas projetos em aberto)
   - Features Fechadas por Dia (Linha)
 - **Filtros Avançados**: Por cliente, PMO, estado, farol
 - **Exportação**: Botão para exportar dados para Excel
@@ -701,6 +703,9 @@ NewFarol/
 | `GET` | `/api/features/counts/wiql` | Contagens via WIQL |
 | `GET` | `/api/features/open/wiql` | Features em aberto via WIQL |
 | `GET` | `/api/features/closed/wiql` | Features encerradas via WIQL |
+| `GET` | `/api/features/near-deadline/wiql` | Features próximas do prazo (query param: `days`) |
+| `GET` | `/api/features/tasks/open/wiql` | Tasks em aberto via WIQL |
+| `GET` | `/api/features/tasks/closed/wiql` | Tasks encerradas via WIQL |
 | `GET` | `/api/features/by-state/wiql` | Features agrupadas por estado |
 | `GET` | `/api/features/by-farol/wiql` | Features agrupadas por Farol |
 | `GET` | `/api/features/status/list` | Lista de status disponíveis |
@@ -1383,6 +1388,7 @@ Testes automatizados para verificação de conexões, API e validação de dados
 | `tests/azdo-connection.test.js` | Teste de conexão com Azure DevOps (credenciais, WIQL, work items, relations) |
 | `tests/api-endpoints.test.js` | Teste dos endpoints da API (health, features, azdo consolidated, counts-by-month) |
 | `tests/data-validation.test.js` | Validação de estruturas de dados e tipos de resposta |
+| `tests/find-floating-tasks.test.js` | Lista Tasks flutuantes (sem parent Feature/User Story) |
 | `tests/run-all.js` | Executa todos os testes em sequência |
 
 ### Pré-requisitos
@@ -1401,9 +1407,11 @@ Testes automatizados para verificação de conexões, API e validação de dados
 
 **Executar um teste específico:**
 ```bash
-node tests/azdo-connection.test.js    # Conexão Azure DevOps
-node tests/api-endpoints.test.js      # Endpoints da API (requer backend)
-node tests/data-validation.test.js    # Validação de dados (requer backend)
+node tests/azdo-connection.test.js         # Conexão Azure DevOps
+node tests/api-endpoints.test.js           # Endpoints da API (requer backend)
+node tests/data-validation.test.js         # Validação de dados (requer backend)
+node tests/find-floating-tasks.test.js     # Tasks flutuantes (lista no console)
+node tests/find-floating-tasks.test.js --output=floating-tasks-report.md   # Gera report .md
 ```
 
 **Executar todos os testes:**
@@ -1843,6 +1851,7 @@ A numeração **2.x** refere-se ao **New Farol** (este repositório). O projeto 
 
 | Versão | Data | Alterações |
 |--------|------|------------|
+| 2.4.0 | 19/02/2026 | Dashboard: remoção da lista "Todos os PMOs (exceto top 10)" do gráfico Projetos por PMO. Projetos por Responsável: lista "Todos os responsáveis (exceto top 10)" encolhível/expansível (inicia encolhida para evitar sobreposição com rótulos), espaçamento (mt-8) para não cobrir nomes do gráfico. Correção: contagem por responsável e modal de drill-down passam a considerar apenas projetos em aberto (`activeItems`), alinhando número exibido com itens mostrados. |
 | 2.3.0 | 09-10/02/2026 | Redirect de login por origem (return_origin). OAuth2 completo com Microsoft Entra ID (troca código por token, id_token, JWT). is_admin por domínio (@qualiit.com.br). Acesso B2B: convidados no tenant Quali IT, atribuição só ao app Farol, doc. one-time passcode. Correções: navbar duplicada no Painel Service Up (oculta em iframe), logo Quali IT (public/logo-qualiit.svg). Doc: permissões Entra ID, app Web (não cliente público), tokens implícitos, passo a passo B2B. Histórico de versões em tabela. |
 | 2.2.0 | 12/01/2026 | Sincronização Painel Service UP com repositório (Davi Silva). Atualização de scripts e configuração de portas. Update submodule Painel Service UP. |
 | 2.1.0 | 11/01/2026 | Consolidação de documentação em README.md. Remoção de arquivos .md desnecessários. READMEOLD no .gitignore. |
@@ -1863,8 +1872,8 @@ Para suporte, dúvidas ou problemas:
 
 <div align="center">
 
-**Última atualização**: 09/02/2026  
-**Versão**: 2.3.0
+**Última atualização**: 19/02/2026  
+**Versão**: 2.4.0
 **Backend**: Node.js/Express  
 **Frontend**: React/TypeScript  
 **Desenvolvido por**: Marcelo Macedo  
