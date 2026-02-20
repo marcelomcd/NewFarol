@@ -1319,18 +1319,7 @@ export default function InteractiveDashboard() {
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task's Fechadas (Closed e Resolved)</div>
           </div>
-          <div
-            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-indigo-500 cursor-pointer hover:opacity-90 transition-opacity"
-            onClick={() => {
-              const items = (tasksOpenData?.items ?? [])
-                .filter((t) => (t as any).days_overdue != null && (t as any).days_overdue > 0)
-                .map((t) => ({
-                  ...t,
-                  raw_fields_json: { ...t.raw_fields_json, work_item_type: 'Task', web_url: t.web_url || t.raw_fields_json?.web_url },
-                })) as Feature[]
-              if (items.length > 0) openDrillDown("Task's Atrasadas", items, "Task's Atrasadas")
-            }}
-          >
+          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-indigo-500">
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa de atraso</div>
             <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
               {tasksSummaryData ? `${taskPerformanceKpis.taxaAtraso}%` : '–'}
