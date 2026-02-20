@@ -64,18 +64,21 @@ export default function DrillDownModal({
               const isBug = workItemType === 'Bug'
               
               const handleClick = () => {
-                if (isBug || isTask) {
-                  // Para Bugs e Tasks, abrir diretamente no Azure DevOps
+                if (isTask) {
+                  // Tasks: navegar para a página de detalhes interna
+                  onClose()
+                  navigate(`/tasks/${item.id}`)
+                } else if (isBug) {
+                  // Bugs: abrir no Azure DevOps (não temos página de detalhes)
                   if (webUrl) {
                     window.open(webUrl, '_blank')
                   } else {
-                    // Fallback: tentar construir URL do Azure DevOps
-                    const org = window.location.hostname.includes('localhost') ? 'qualiit' : 'qualiit'
-                    window.open(`https://dev.azure.com/${org}/Quali%20IT%20-%20Inovação%20e%20Tecnologia/_workitems/edit/${item.id}`, '_blank')
+                    window.open(`https://dev.azure.com/qualiit/Quali%20IT%20-%20Inovação%20e%20Tecnologia/_workitems/edit/${item.id}`, '_blank')
                   }
                 } else {
-                  // Para Features, usar rota normal
-                  window.open(`/features/${item.id}`, '_blank')
+                  // Features: navegar para a página de detalhes interna
+                  onClose()
+                  navigate(`/features/${item.id}`)
                 }
               }
               
