@@ -222,11 +222,11 @@ export default function Navbar({ farolStatus: propFarolStatus }: NavbarProps) {
       style={getNavbarStyle()}
     >
       <div className="w-full max-w-[1920px] mx-auto px-4 lg:px-6">
-        <div className="flex items-center justify-between h-16 lg:h-18 gap-4">
+        <div className="relative flex items-center justify-between h-16 lg:h-18 gap-4">
           {/* Logo e Nome */}
           <Link
             to="/"
-            className="flex items-center gap-3 group transition-all duration-300 hover:scale-105 shrink-0"
+            className="flex items-center gap-3 group transition-all duration-300 hover:scale-105 shrink-0 z-10"
           >
             {/* Logo Quali IT */}
             <div className="relative flex-shrink-0">
@@ -251,8 +251,8 @@ export default function Navbar({ farolStatus: propFarolStatus }: NavbarProps) {
             </div>
           </Link>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center gap-0.5 flex-nowrap">
+          {/* Desktop Menu - centralizado na navbar */}
+          <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 flex-nowrap">
             {navLinks.map((link) => {
               const isActive = location.pathname === link.path
               return (
@@ -272,7 +272,10 @@ export default function Navbar({ farolStatus: propFarolStatus }: NavbarProps) {
                 </Link>
               )
             })}
+          </div>
 
+          {/* Theme Toggle e User - direita */}
+          <div className="hidden md:flex items-center gap-0.5 flex-nowrap shrink-0 z-10">
             {/* Separador */}
             <div className="w-px h-6 bg-white/20 mx-2"></div>
 
