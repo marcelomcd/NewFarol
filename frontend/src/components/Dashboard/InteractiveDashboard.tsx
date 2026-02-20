@@ -786,12 +786,13 @@ export default function InteractiveDashboard() {
       <circle
         cx={cx}
         cy={cy}
-        r={4}
+        r={8}
         fill={COLORS.primary}
         stroke="#fff"
-        strokeWidth={1}
+        strokeWidth={2}
         style={{ cursor: 'pointer' }}
-        onClick={() => {
+        onClick={(e: React.MouseEvent) => {
+          e.stopPropagation()
           if (iso) handleClosedDayClick(iso)
         }}
       />
@@ -1350,11 +1351,11 @@ export default function InteractiveDashboard() {
                   name="Concluídos"
                   stackId="a"
                   fill={COLORS.success}
-                  onClick={(evt: any) => {
-                    const pmoName = evt?.payload?.name ?? evt?.name
-                    const row = pmoPerformanceData.find((p) => p.name === pmoName)
-                    if (row?.items.closed.length) {
-                      openDrillDown(`PMO: ${row.name} - Concluídos`, row.items.closed, `PMO: ${row.name} | Concluídos`)
+                  onClick={(data: any) => {
+                    const row = data?.payload ?? data
+                    const items = row?.items?.closed ?? []
+                    if (items.length > 0) {
+                      openDrillDown(`PMO: ${row.name} - Concluídos`, items, `PMO: ${row.name} | Concluídos`)
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -1364,11 +1365,11 @@ export default function InteractiveDashboard() {
                   name="Em dia"
                   stackId="a"
                   fill={COLORS.primary}
-                  onClick={(evt: any) => {
-                    const pmoName = evt?.payload?.name ?? evt?.name
-                    const row = pmoPerformanceData.find((p) => p.name === pmoName)
-                    if (row?.items.onTime.length) {
-                      openDrillDown(`PMO: ${row.name} - Em dia`, row.items.onTime, `PMO: ${row.name} | Em dia`)
+                  onClick={(data: any) => {
+                    const row = data?.payload ?? data
+                    const items = row?.items?.onTime ?? []
+                    if (items.length > 0) {
+                      openDrillDown(`PMO: ${row.name} - Em dia`, items, `PMO: ${row.name} | Em dia`)
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -1378,11 +1379,11 @@ export default function InteractiveDashboard() {
                   name="Atrasados"
                   stackId="a"
                   fill={COLORS.danger}
-                  onClick={(evt: any) => {
-                    const pmoName = evt?.payload?.name ?? evt?.name
-                    const row = pmoPerformanceData.find((p) => p.name === pmoName)
-                    if (row?.items.overdue.length) {
-                      openDrillDown(`PMO: ${row.name} - Atrasados`, row.items.overdue, `PMO: ${row.name} | Atrasados`)
+                  onClick={(data: any) => {
+                    const row = data?.payload ?? data
+                    const items = row?.items?.overdue ?? []
+                    if (items.length > 0) {
+                      openDrillDown(`PMO: ${row.name} - Atrasados`, items, `PMO: ${row.name} | Atrasados`)
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -1574,13 +1575,17 @@ export default function InteractiveDashboard() {
             <LineChart data={closedByDay}>
               <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} interval={0} />
               <YAxis />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#94a3b8', strokeWidth: 1 }} />
               <Line
                 type="monotone"
                 dataKey="closed"
                 stroke={COLORS.primary}
                 strokeWidth={2}
                 dot={<ClosedDot />}
+                activeDot={{ r: 10, strokeWidth: 2, stroke: '#fff' }}
+                onClick={(data: { isoDate?: string }) => {
+                  if (data?.isoDate) handleClosedDayClick(data.isoDate)
+                }}
               />
             </LineChart>
           </ResponsiveContainer>
