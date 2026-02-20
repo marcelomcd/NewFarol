@@ -58,12 +58,13 @@ export default function DrillDownModal({
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-3">
             {items.map((item) => {
-              // Verificar se é Bug ou Task e usar web_url do Azure DevOps
               const workItemType = item.raw_fields_json?.['work_item_type']
-              const webUrl = item.raw_fields_json?.['web_url']
+              const webUrl = (item as any).web_url || item.raw_fields_json?.['web_url']
+              const isTask = workItemType === 'Task'
+              const isBug = workItemType === 'Bug'
               
               const handleClick = () => {
-                if (workItemType === 'Bug' || workItemType === 'Task') {
+                if (isBug || isTask) {
                   // Para Bugs e Tasks, abrir diretamente no Azure DevOps
                   if (webUrl) {
                     window.open(webUrl, '_blank')
@@ -87,10 +88,12 @@ export default function DrillDownModal({
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
-                      <FarolCircle
-                        status={normalizeFarolStatus(item.farol_status)}
-                        size="small"
-                      />
+                      {!isTask && !isBug && (
+                        <FarolCircle
+                          status={normalizeFarolStatus(item.farol_status)}
+                          size="small"
+                        />
+                      )}
                       <span className="font-semibold text-gray-800 dark:text-white">
                         ID: {item.id}
                       </span>
@@ -103,17 +106,23 @@ export default function DrillDownModal({
                         {item.title || 'Sem título'}
                       </h3>
                     </Tooltip>
-                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400 flex-wrap">
                       {item.client && (
                         <span className="flex items-center gap-1">
                           <span>🏢</span>
                           <span>{item.client}</span>
                         </span>
                       )}
-                      {item.pmo && (
+                      {((item as any).assigned_to || item.pmo) && (
                         <span className="flex items-center gap-1">
                           <span>👤</span>
-                          <span>{item.pmo}</span>
+                          <span>{(item as any).assigned_to || item.pmo}</span>
+                        </span>
+                      )}
+                      {(item as any).responsible && (
+                        <span className="flex items-center gap-1">
+                          <span>📋</span>
+                          <span>{(item as any).responsible}</span>
                         </span>
                       )}
                       {item.changed_date && (

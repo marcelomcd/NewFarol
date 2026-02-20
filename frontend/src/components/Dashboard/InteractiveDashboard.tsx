@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { api, azdoApi, featuresApi, workItemsApi, Feature } from '../../services/api'
+import { api, azdoApi, featuresApi, featuresCountApi, workItemsApi, Feature } from '../../services/api'
 import {
   BarChart,
   Bar,
@@ -114,19 +114,18 @@ export default function InteractiveDashboard() {
   const { data: tasksSummaryData } = useQuery({
     queryKey: ['work-items', 'tasks-summary'],
     queryFn: () => workItemsApi.getTasksSummary(),
-    staleTime: 60_000,
+    staleTime: 300_000,
+    gcTime: 600_000,
+    refetchOnWindowFocus: false,
   })
 
-  const { data: tasksOverdueData } = useQuery({
-    queryKey: ['work-items', 'tasks', 'overdue'],
-    queryFn: () => workItemsApi.getTasks({ overdue_only: true }),
-    staleTime: 60_000,
-  })
-
-  const { data: tasksAllData } = useQuery({
-    queryKey: ['work-items', 'tasks', 'all'],
-    queryFn: () => workItemsApi.getTasks({}),
-    staleTime: 60_000,
+  // Tasks abertas - mesma query que Task's Ativas para compartilhar cache; usado nos modais
+  const { data: tasksOpenData } = useQuery({
+    queryKey: ['tasks', 'open'],
+    queryFn: () => featuresCountApi.getTasksOpenWiql(),
+    staleTime: 300_000, // 5 min - carregamento quase instantâneo ao reusar cache
+    gcTime: 600_000,
+    refetchOnWindowFocus: false,
   })
 
   const lastNMonthsForTasks = useMemo(() => {
@@ -1281,14 +1280,10 @@ export default function InteractiveDashboard() {
           <div
             className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-teal-500 cursor-pointer hover:opacity-90 transition-opacity"
             onClick={() => {
-              const OPEN_STATES = ['New', 'Active']
-              const tasks = (tasksAllData?.tasks ?? []).filter((t) => OPEN_STATES.includes(t.state || ''))
-              const items = tasks.map((t) => ({
-                id: t.id,
-                title: t.title,
-                state: t.state,
-                raw_fields_json: { work_item_type: 'Task', web_url: t.web_url },
-              })) as unknown as Feature[]
+              const items = (tasksOpenData?.items ?? []).map((t) => ({
+                ...t,
+                raw_fields_json: { ...t.raw_fields_json, work_item_type: 'Task', web_url: t.web_url || t.raw_fields_json?.web_url },
+              })) as Feature[]
               if (items.length > 0) openDrillDown('Total de Tasks', items, 'Tasks em aberto (New, Active)')
             }}
           >
@@ -1301,13 +1296,12 @@ export default function InteractiveDashboard() {
           <div
             className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-red-500 cursor-pointer hover:opacity-90 transition-opacity"
             onClick={() => {
-              const tasks = tasksOverdueData?.tasks ?? []
-              const items = tasks.map((t) => ({
-                id: t.id,
-                title: t.title,
-                state: t.state,
-                raw_fields_json: { work_item_type: 'Task', web_url: t.web_url },
-              })) as unknown as Feature[]
+              const items = (tasksOpenData?.items ?? [])
+                .filter((t) => (t as any).days_overdue != null && (t as any).days_overdue > 0)
+                .map((t) => ({
+                  ...t,
+                  raw_fields_json: { ...t.raw_fields_json, work_item_type: 'Task', web_url: t.web_url || t.raw_fields_json?.web_url },
+                })) as Feature[]
               if (items.length > 0) openDrillDown('Tasks Atrasadas', items, 'Tasks atrasadas')
             }}
           >

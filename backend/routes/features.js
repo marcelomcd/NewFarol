@@ -9,6 +9,7 @@ import { getFeaturesQuery, getTasksOpenQuery, getTasksClosedQuery } from '../uti
 import { extractClientName, extractPmoName, extractResponsavelCliente, normalizeFarolStatus } from '../utils/normalization.js';
 import { getUserClientFilter } from '../utils/auth.js';
 import { formatWorkItemFieldsFlat, formatWorkItemFields, filterRawFields } from '../utils/fieldFormatter.js';
+import cache from '../utils/ttlCache.js';
 import { organizeChecklistByTransition } from '../utils/checklistOrganizer.js';
 import dotenv from 'dotenv';
 
@@ -820,12 +821,20 @@ router.get('/closed/wiql', async (req, res) => {
   }
 });
 
+const TASKS_CACHE_TTL = 60; // 60 segundos - reduz chamadas ao Azure
+
 /**
  * GET /api/features/tasks/open/wiql
  * Tasks abertas (New, Active) - mesmo padrão de Features: client e assigned_to do Parent
  */
 router.get('/tasks/open/wiql', async (req, res) => {
   try {
+    const cacheKey = 'features:tasks:open';
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
     const wiql = new WIQLClient();
     const query = getTasksOpenQuery(null);
     const wiqlResult = await wiql.executeWiql(project, query);
@@ -912,7 +921,9 @@ router.get('/tasks/open/wiql', async (req, res) => {
       };
     });
 
-    res.json({ items, count: items.length, source: 'wiql' });
+    const result = { items, count: items.length, source: 'wiql' };
+    cache.set(cacheKey, result, TASKS_CACHE_TTL);
+    res.json(result);
   } catch (error) {
     console.error('[ERROR] /api/features/tasks/open/wiql:', error);
     res.status(500).json({ error: error.message || 'Erro ao buscar tasks abertas' });
@@ -925,6 +936,12 @@ router.get('/tasks/open/wiql', async (req, res) => {
  */
 router.get('/tasks/closed/wiql', async (req, res) => {
   try {
+    const cacheKey = 'features:tasks:closed';
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
     const wiql = new WIQLClient();
     const query = getTasksClosedQuery(null);
     const wiqlResult = await wiql.executeWiql(project, query);
@@ -995,7 +1012,9 @@ router.get('/tasks/closed/wiql', async (req, res) => {
       };
     });
 
-    res.json({ items, count: items.length, source: 'wiql' });
+    const result = { items, count: items.length, source: 'wiql' };
+    cache.set(cacheKey, result, TASKS_CACHE_TTL);
+    res.json(result);
   } catch (error) {
     console.error('[ERROR] /api/features/tasks/closed/wiql:', error);
     res.status(500).json({ error: error.message || 'Erro ao buscar tasks fechadas' });

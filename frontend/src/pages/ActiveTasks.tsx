@@ -12,9 +12,10 @@ export default function ActiveTasks() {
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null)
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['tasks', 'active'],
+    queryKey: ['tasks', 'open'],
     queryFn: () => featuresCountApi.getTasksOpenWiql(),
-    staleTime: 30_000,
+    staleTime: 300_000,
+    gcTime: 600_000,
     refetchOnWindowFocus: false,
   })
 
