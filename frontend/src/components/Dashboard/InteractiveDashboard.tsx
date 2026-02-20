@@ -559,8 +559,10 @@ export default function InteractiveDashboard() {
       .sort((a, b) => b.value - a.value)
   }, [allItemsForPMOCount])
 
+  // Contagem por responsável: apenas projetos ABERTOS (ativo = não encerrado)
+  // Deve ser consistente com o modal que exibe activeItems ao clicar
   const responsibleCounts = useMemo(() => {
-    const counts = filteredItems.reduce((acc: Record<string, number>, item) => {
+    const counts = activeItems.reduce((acc: Record<string, number>, item) => {
       const responsible = extractResponsavelCliente(item)
       const name = responsible && responsible.trim() !== '' ? responsible.trim() : 'Não atribuído'
       acc[name] = (acc[name] || 0) + 1
@@ -570,7 +572,7 @@ export default function InteractiveDashboard() {
       .map(([name, value]) => ({ name: name && name.trim() !== '' ? name.trim() : 'Não atribuído', value }))
       .filter(({ name }) => name && name.trim() !== '')
       .sort((a, b) => b.value - a.value)
-  }, [filteredItems])
+  }, [activeItems])
 
   // Contagens e itens por mês (projetos abertos/fechados no mês selecionado)
   const monthlyProjectData = useMemo(() => {
@@ -1730,7 +1732,7 @@ export default function InteractiveDashboard() {
                 fill={COLORS.success}
                 onClick={(data: any) => {
                   if (data && data.name) {
-                    const items = filteredItems.filter((item) => extractResponsavelCliente(item) === data.name)
+                    const items = activeItems.filter((item) => extractResponsavelCliente(item) === data.name)
                     if (items.length > 0) openDrillDown(`Features do Responsável: ${data.name}`, items as Feature[], `Responsável: ${data.name}`)
                   }
                 }}
