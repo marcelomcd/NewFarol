@@ -1,7 +1,20 @@
 import axios from 'axios'
 
+/** Base URL da API - em localhost usa backend direto (8000) para consistência com auth e evitar falhas via proxy */
+function getApiBase(): string {
+  const env = import.meta.env.VITE_API_BASE_URL
+  if (env) return env
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'http://localhost:8000'
+  }
+  return ''
+}
+
+const apiBase = getApiBase()
+const baseURL = apiBase ? `${apiBase}/api` : '/api'
+
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -265,11 +278,16 @@ export const projectsApi = {
 }
 
 export const reportsApi = {
-  execute: async (type: string, days?: number, filters?: Record<string, any>) => {
+  execute: async (
+    type: string,
+    options?: { dateDe?: string; dateAte?: string; days?: number; filters?: Record<string, any> }
+  ) => {
     const response = await api.post('/reports/execute', {
       type,
-      days,
-      filters,
+      dateDe: options?.dateDe,
+      dateAte: options?.dateAte,
+      days: options?.days,
+      filters: options?.filters,
     })
     return response.data
   },
