@@ -20,6 +20,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+/** Base URL da API - em localhost usa backend direto (8000) para evitar 404 via proxy */
+function getApiBase(): string {
+  const env = import.meta.env.VITE_API_BASE_URL
+  if (env) return env
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'http://localhost:8000'
+  }
+  return ''
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
@@ -37,7 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let lastError: any = null
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-          const response = await axios.get('/api/auth/me', {
+          const base = getApiBase()
+          const url = base ? `${base}/api/auth/me` : '/api/auth/me'
+          const response = await axios.get(url, {
             params: { token: tokenToValidate },
             timeout: 10000, // 10 segundos de timeout
           })
@@ -135,12 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     const returnOrigin = origin ? `?return_origin=${encodeURIComponent(origin)}` : ''
-    // Redireciona para o backend diretamente (evita 404 quando proxy falha)
-    const apiBase = import.meta.env.VITE_API_BASE_URL
-      ?? (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        ? 'http://localhost:8000'
-        : '')
-    const base = apiBase || (typeof window !== 'undefined' ? window.location.origin : '')
+    const base = getApiBase() || (typeof window !== 'undefined' ? window.location.origin : '')
     window.location.href = `${base}/api/auth/login${returnOrigin}`
   }
 
@@ -150,7 +157,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[Auth] Fazendo requisição para /api/auth/dev-login...')
       setIsLoading(true)
       
-      const response = await axios.get('/api/auth/dev-login', {
+      const base = getApiBase()
+      const url = base ? `${base}/api/auth/dev-login` : '/api/auth/dev-login'
+      const response = await axios.get(url, {
         timeout: 5000, // 5 segundos de timeout
         headers: {
           'Cache-Control': 'no-cache',
