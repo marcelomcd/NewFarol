@@ -706,11 +706,12 @@ export default function InteractiveDashboard() {
       .filter((d) => d.value > 0)
   }, [farolSummary])
 
-  // KPIs de Tasks - Total e Atrasadas só consideram tasks em aberto (New, Active)
+  // KPIs de Tasks - todos em percentual
   const taskPerformanceKpis = useMemo(() => {
     const total = tasksSummaryData?.total ?? 0 // Backend retorna só New+Active
     const overdue = tasksSummaryData?.overdue_count ?? 0 // New+Active com prazo vencido
     const taxaAtraso = total > 0 ? Math.round((overdue / total) * 1000) / 10 : 0
+    const noPrazo = total > 0 ? Math.round(((total - overdue) / total) * 1000) / 10 : 0
     const byState = tasksSummaryData?.by_state ?? {}
     const closedStates = ['Closed', 'Done', 'Resolved', 'Removed']
     const closed = Object.entries(byState)
@@ -718,8 +719,8 @@ export default function InteractiveDashboard() {
       .reduce((sum, [, count]) => sum + count, 0)
     const totalGeral = total + closed
     const taxaConclusao = totalGeral > 0 ? Math.round((closed / totalGeral) * 1000) / 10 : 0
-    const emAndamento = total
-    return { total, overdue, taxaConclusao, taxaAtraso, emAndamento }
+    const emAndamento = totalGeral > 0 ? Math.round((total / totalGeral) * 1000) / 10 : 0
+    return { total, overdue, taxaConclusao, taxaAtraso, noPrazo, emAndamento }
   }, [tasksSummaryData])
 
   // Evolução de tasks fechadas (N meses)
@@ -1276,23 +1277,14 @@ export default function InteractiveDashboard() {
           </div>
         </div>
 
-        {/* KPIs de Tasks */}
+        {/* KPIs de Tasks - todos em percentual */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div
-            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-teal-500 cursor-pointer hover:opacity-90 transition-opacity"
-            onClick={() => {
-              const items = (tasksOpenData?.items ?? []).map((t) => ({
-                ...t,
-                raw_fields_json: { ...t.raw_fields_json, work_item_type: 'Task', web_url: t.web_url || t.raw_fields_json?.web_url },
-              })) as Feature[]
-              if (items.length > 0) openDrillDown("Total de Task's", items, "Task's em Aberto (New e Active)")
-            }}
-          >
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total de Task's</div>
-            <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">
-              {tasksSummaryData ? taskPerformanceKpis.total : '–'}
+          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-cyan-500">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Task&apos;s Fechadas</div>
+            <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">
+              {tasksSummaryData ? `${taskPerformanceKpis.taxaConclusao}%` : '–'}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task's em Aberto (New e Active)</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task&apos;s Fechadas (Closed e Resolved)</div>
           </div>
           <div
             className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-red-500 cursor-pointer hover:opacity-90 transition-opacity"
@@ -1306,25 +1298,34 @@ export default function InteractiveDashboard() {
               if (items.length > 0) openDrillDown("Task's Atrasadas", items, "Task's Atrasadas")
             }}
           >
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Task's Atrasadas</div>
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {tasksSummaryData ? taskPerformanceKpis.overdue : '–'}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task's Atrasadas</div>
-          </div>
-          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-cyan-500">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Task's Fechadas</div>
-            <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">
-              {tasksSummaryData ? `${taskPerformanceKpis.taxaConclusao}%` : '–'}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task's Fechadas (Closed e Resolved)</div>
-          </div>
-          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-indigo-500">
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa de atraso</div>
-            <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
               {tasksSummaryData ? `${taskPerformanceKpis.taxaAtraso}%` : '–'}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task&apos;s Atrasadas</div>
+          </div>
+          <div
+            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-teal-500 cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => {
+              const items = (tasksOpenData?.items ?? []).map((t) => ({
+                ...t,
+                raw_fields_json: { ...t.raw_fields_json, work_item_type: 'Task', web_url: t.web_url || t.raw_fields_json?.web_url },
+              })) as Feature[]
+              if (items.length > 0) openDrillDown("Task's em Aberto", items, "Task's em Aberto (New e Active)")
+            }}
+          >
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Em Andamento</div>
+            <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">
+              {tasksSummaryData ? `${taskPerformanceKpis.emAndamento}%` : '–'}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task&apos;s em Aberto (New e Active)</div>
+          </div>
+          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-emerald-500">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">No Prazo</div>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              {tasksSummaryData ? `${taskPerformanceKpis.noPrazo}%` : '–'}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Abertos em Dia</div>
           </div>
         </div>
 
