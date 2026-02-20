@@ -48,9 +48,16 @@ function extractClientFromAreaPath(areaPath?: string): string | null {
   return normalized
 }
 
-export default function FeatureDetails() {
-  const { id } = useParams<{ id: string }>()
+interface FeatureDetailsProps {
+  idOverride?: number
+  embedded?: boolean
+  onClose?: () => void
+}
+
+export default function FeatureDetails({ idOverride, embedded, onClose }: FeatureDetailsProps = {}) {
+  const { id: paramsId } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const id = idOverride != null ? String(idOverride) : paramsId
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['feature', id],
@@ -121,10 +128,10 @@ export default function FeatureDetails() {
               Erro ao carregar feature: {error instanceof Error ? error.message : 'Feature não encontrada'}
             </p>
             <button
-              onClick={() => navigate('/features')}
+              onClick={embedded && onClose ? onClose : () => navigate('/features')}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              Voltar para Features
+              {embedded && onClose ? 'Fechar' : 'Voltar para Features'}
             </button>
           </>
         )}
@@ -224,15 +231,17 @@ export default function FeatureDetails() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-lg bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-700 transition-all hover-lift"
-            title="Voltar"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-          </button>
+          {!embedded && (
+            <button
+              onClick={() => navigate(-1)}
+              className="p-2 rounded-lg bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-700 transition-all hover-lift"
+              title="Voltar"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+          )}
           <div>
             <h1 className="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
               <span>🔹</span>

@@ -1,7 +1,7 @@
-import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { Feature } from '../../services/api'
 import FarolCircle from '../Farol/FarolCircle'
+import DetailOverlay from './DetailOverlay'
 import Tooltip from '../Tooltip/Tooltip'
 import { normalizeFarolStatus } from '../../utils/farol'
 import { format } from 'date-fns'
@@ -22,11 +22,12 @@ export default function DrillDownModal({
   items,
   filterLabel,
 }: DrillDownModalProps) {
-  const navigate = useNavigate()
+  const [selectedItem, setSelectedItem] = useState<{ type: 'feature' | 'task'; id: number } | null>(null)
 
   if (!isOpen) return null
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn"
       onClick={onClose}
@@ -65,20 +66,15 @@ export default function DrillDownModal({
               
               const handleClick = () => {
                 if (isTask) {
-                  // Tasks: navegar para a página de detalhes interna
-                  onClose()
-                  navigate(`/tasks/${item.id}`)
+                  setSelectedItem({ type: 'task', id: item.id })
                 } else if (isBug) {
-                  // Bugs: abrir no Azure DevOps (não temos página de detalhes)
                   if (webUrl) {
                     window.open(webUrl, '_blank')
                   } else {
                     window.open(`https://dev.azure.com/qualiit/Quali%20IT%20-%20Inovação%20e%20Tecnologia/_workitems/edit/${item.id}`, '_blank')
                   }
                 } else {
-                  // Features: navegar para a página de detalhes interna
-                  onClose()
-                  navigate(`/features/${item.id}`)
+                  setSelectedItem({ type: 'feature', id: item.id })
                 }
               }
               
@@ -171,6 +167,16 @@ export default function DrillDownModal({
         </div>
       </div>
     </div>
+
+    {/* Overlay full-screen de detalhes (estilo Azure DevOps) */}
+    {selectedItem && (
+      <DetailOverlay
+        type={selectedItem.type}
+        id={selectedItem.id}
+        onClose={() => setSelectedItem(null)}
+      />
+    )}
+    </>
   )
 }
 
