@@ -9,6 +9,8 @@ export default function ActiveTasks() {
   const [searchTerm, setSearchTerm] = useState('')
   const [assignedFilter, setAssignedFilter] = useState<string>('')
   const [stateFilter, setStateFilter] = useState<string>('')
+  const [clientFilter, setClientFilter] = useState<string>('')
+  const [responsibleFilter, setResponsibleFilter] = useState<string>('')
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null)
 
   const { data, isLoading, error } = useQuery({
@@ -32,7 +34,7 @@ export default function ActiveTasks() {
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
       filtered = filtered.filter((t) => {
-        const searchable = [t.title, t.assigned_to, t.id.toString(), t.state]
+        const searchable = [t.title, t.assigned_to, t.client, t.responsible, t.id.toString(), t.state]
           .filter(Boolean)
           .join(' ')
         return searchable
@@ -51,8 +53,16 @@ export default function ActiveTasks() {
       filtered = filtered.filter((t) => (t.state || '') === stateFilter)
     }
 
+    if (clientFilter) {
+      filtered = filtered.filter((t) => (t.client || '').trim() === clientFilter)
+    }
+
+    if (responsibleFilter) {
+      filtered = filtered.filter((t) => (t.responsible || '').trim() === responsibleFilter)
+    }
+
     return filtered
-  }, [activeTasks, searchTerm, assignedFilter, stateFilter])
+  }, [activeTasks, searchTerm, assignedFilter, stateFilter, clientFilter, responsibleFilter])
 
   const availableAssignees = useMemo(() => {
     const set = new Set(activeTasks.map((t) => (t.assigned_to || 'Não atribuído').trim()).filter(Boolean))
@@ -61,6 +71,16 @@ export default function ActiveTasks() {
 
   const availableStates = useMemo(() => {
     const set = new Set(activeTasks.map((t) => t.state).filter(Boolean))
+    return Array.from(set).sort()
+  }, [activeTasks])
+
+  const availableClients = useMemo(() => {
+    const set = new Set(activeTasks.map((t) => (t.client || '–').trim()).filter((v) => v && v !== '–'))
+    return Array.from(set).sort()
+  }, [activeTasks])
+
+  const availableResponsibles = useMemo(() => {
+    const set = new Set(activeTasks.map((t) => (t.responsible || '–').trim()).filter((v) => v && v !== '–'))
     return Array.from(set).sort()
   }, [activeTasks])
 
@@ -148,9 +168,9 @@ export default function ActiveTasks() {
       </div>
 
       <div className="glass dark:glass-dark p-4 rounded-lg">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Responsável</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Executante</label>
             <select
               value={assignedFilter}
               onChange={(e) => setAssignedFilter(e.target.value)}
@@ -172,6 +192,32 @@ export default function ActiveTasks() {
               <option value="">Todos</option>
               {availableStates.map((s) => (
                 <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cliente</label>
+            <select
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+            >
+              <option value="">Todos</option>
+              {availableClients.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Resp. Cliente</label>
+            <select
+              value={responsibleFilter}
+              onChange={(e) => setResponsibleFilter(e.target.value)}
+              className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+            >
+              <option value="">Todos</option>
+              {availableResponsibles.map((r) => (
+                <option key={r} value={r}>{r}</option>
               ))}
             </select>
           </div>
@@ -205,7 +251,19 @@ export default function ActiveTasks() {
                   className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-blue-600/30"
                   onClick={() => handleSort('assigned_to')}
                 >
-                  Responsável {sortConfig?.key === 'assigned_to' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  Executante {sortConfig?.key === 'assigned_to' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th
+                  className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-blue-600/30"
+                  onClick={() => handleSort('client')}
+                >
+                  Cliente {sortConfig?.key === 'client' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th
+                  className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-blue-600/30"
+                  onClick={() => handleSort('responsible')}
+                >
+                  Resp. Cliente {sortConfig?.key === 'responsible' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th
                   className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-blue-600/30"
@@ -251,6 +309,8 @@ export default function ActiveTasks() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{t.state || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{t.assigned_to || 'Não atribuído'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{t.client || '–'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{t.responsible || '–'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{formatDate(t.target_date)}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {t.days_overdue != null && t.days_overdue > 0 ? (

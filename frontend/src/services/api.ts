@@ -347,6 +347,24 @@ export const azdoApi = {
     const response = await api.get('/azdo/consolidated', { params })
     return response.data
   },
+  /**Contagens de tasks abertas/fechadas por mês. Projetos calculados no frontend. include_items=true retorna itens para drill-down. */
+  getCountsByMonth: async (
+    month: number,
+    year: number,
+    includeItems = false
+  ): Promise<{
+    month: number
+    year: number
+    tasks_opened: number
+    tasks_closed: number
+    tasks_opened_items?: Array<{ id: number; title: string; state: string; changed_date: string; raw_fields_json?: { work_item_type: string; web_url: string } }>
+    tasks_closed_items?: Array<{ id: number; title: string; state: string; changed_date: string; raw_fields_json?: { work_item_type: string; web_url: string } }>
+  }> => {
+    const params: Record<string, unknown> = { month, year }
+    if (includeItems) params.include_items = 'true'
+    const response = await api.get('/azdo/counts-by-month', { params })
+    return response.data
+  },
 }
 
 export const filtersApi = {
@@ -393,6 +411,10 @@ export interface Task {
   activity: string
   url: string
   web_url: string
+  /** Cliente do Parent (Feature/User Story) */
+  client?: string | null
+  /** Responsável Cliente do Parent (Feature/User Story) */
+  responsible?: string | null
 }
 
 export interface UserStory {

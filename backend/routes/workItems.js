@@ -28,6 +28,33 @@ const router = express.Router();
 const project = process.env.AZDO_ROOT_PROJECT || 'Quali IT - Inovação e Tecnologia';
 
 /**
+ * Extrai ID do parent a partir das relations do work item
+ */
+function extractParentId(relations) {
+  if (!relations || !Array.isArray(relations)) return null;
+  const parentRel = relations.find(
+    (r) =>
+      r?.rel?.includes('Hierarchy-Reverse') ||
+      (r?.attributes?.name && String(r.attributes.name).toLowerCase() === 'parent')
+  );
+  if (!parentRel?.url) return null;
+  const match = parentRel.url.match(/workItems\/(\d+)(?:\?|$)/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Extrai Responsável Cliente de Custom.ResponsavelCliente
+ */
+function extractResponsavelCliente(value) {
+  if (!value) return null;
+  if (typeof value === 'object' && value !== null) {
+    return value.displayName || value.name || value.uniqueName || null;
+  }
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  return null;
+}
+
+/**
  * Extrai displayName de objeto ou email
  */
 function extractDisplayName(value) {
@@ -221,12 +248,16 @@ router.get('/tasks', async (req, res) => {
     const tasksData = await wiql.getWorkItems(taskIds);
 
     const tasks = [];
+    const taskToParentId = new Map();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     for (const task of tasksData) {
       const fields = task.fields || {};
       const taskState = fields['System.State'] || '';
+
+      const parentId = extractParentId(task.relations);
+      if (parentId) taskToParentId.set(task.id, parentId);
 
       // Aplicar filtros
       if (state && taskState !== state) {
@@ -277,7 +308,58 @@ router.get('/tasks', async (req, res) => {
         web_url: task._links?.html?.href || '',
         fields_formatted: formattedFields,
         raw_fields_json: filteredRawFields,
+        _parentId: parentId,
       });
+    }
+
+    // Enriquecer tasks com client e responsible do Parent (Feature/User Story)
+    const uniqueParentIds = [...new Set(taskToParentId.values())];
+    const parentDataMap = new Map();
+    if (uniqueParentIds.length > 0) {
+      const parentsData = await wiql.getWorkItems(uniqueParentIds);
+      const featureParentIds = [];
+      for (const parent of parentsData) {
+        const fields = parent.fields || {};
+        const areaPath = fields['System.AreaPath'];
+        const iterationPath = fields['System.IterationPath'];
+        const workItemType = fields['System.WorkItemType'] || '';
+        const client = extractClientName(areaPath, iterationPath);
+        let responsible = extractResponsavelCliente(fields['Custom.ResponsavelCliente']);
+        if (!responsible && workItemType === 'User Story') {
+          const grandParentId = extractParentId(parent.relations);
+          if (grandParentId) featureParentIds.push({ parentId: parent.id, featureId: grandParentId });
+        }
+        parentDataMap.set(parent.id, { client: client || null, responsible: responsible || null });
+      }
+      if (featureParentIds.length > 0) {
+        const featureIds = [...new Set(featureParentIds.map((p) => p.featureId))];
+        const featuresData = await wiql.getWorkItems(featureIds);
+        const featureToResponsible = new Map();
+        for (const f of featuresData) {
+          const resp = extractResponsavelCliente(f.fields?.['Custom.ResponsavelCliente']);
+          if (resp) featureToResponsible.set(f.id, resp);
+        }
+        for (const { parentId, featureId } of featureParentIds) {
+          const resp = featureToResponsible.get(featureId);
+          if (resp) {
+            const existing = parentDataMap.get(parentId);
+            if (existing) parentDataMap.set(parentId, { ...existing, responsible: resp });
+          }
+        }
+      }
+    }
+
+    for (const t of tasks) {
+      const pid = t._parentId;
+      delete t._parentId;
+      if (pid && parentDataMap.has(pid)) {
+        const { client, responsible } = parentDataMap.get(pid);
+        t.client = client;
+        t.responsible = responsible;
+      } else {
+        t.client = null;
+        t.responsible = null;
+      }
     }
 
     // Ordenar tasks atrasadas por dias de atraso (maior primeiro)
