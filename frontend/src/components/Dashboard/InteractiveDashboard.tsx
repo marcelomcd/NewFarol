@@ -710,6 +710,7 @@ export default function InteractiveDashboard() {
   const taskPerformanceKpis = useMemo(() => {
     const total = tasksSummaryData?.total ?? 0 // Backend retorna só New+Active
     const overdue = tasksSummaryData?.overdue_count ?? 0 // New+Active com prazo vencido
+    const taxaAtraso = total > 0 ? Math.round((overdue / total) * 1000) / 10 : 0
     const byState = tasksSummaryData?.by_state ?? {}
     const closedStates = ['Closed', 'Done', 'Resolved', 'Removed']
     const closed = Object.entries(byState)
@@ -718,7 +719,7 @@ export default function InteractiveDashboard() {
     const totalGeral = total + closed
     const taxaConclusao = totalGeral > 0 ? Math.round((closed / totalGeral) * 1000) / 10 : 0
     const emAndamento = total
-    return { total, overdue, taxaConclusao, emAndamento }
+    return { total, overdue, taxaConclusao, taxaAtraso, emAndamento }
   }, [tasksSummaryData])
 
   // Evolução de tasks fechadas (N meses)
@@ -1256,22 +1257,22 @@ export default function InteractiveDashboard() {
           <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-blue-500">
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa de Conclusão</div>
             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{performanceKpis.taxaConclusao}%</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Projetos encerrados / total</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Projetos Encerrado</div>
           </div>
           <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-amber-500">
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa de Atraso</div>
             <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{performanceKpis.taxaAtraso}%</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Abertos atrasados / abertos</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Projetos Atrasados</div>
           </div>
           <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-green-500">
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Saúde do Farol</div>
             <div className="text-2xl font-bold text-green-600 dark:text-green-400">{performanceKpis.saudeFarol}%</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Sem Problema / ativos</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Sem Problema</div>
           </div>
           <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-emerald-500">
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">No Prazo</div>
             <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{performanceKpis.noPrazo}%</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Abertos em dia / abertos</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Abertos em Dia</div>
           </div>
         </div>
 
@@ -1284,14 +1285,14 @@ export default function InteractiveDashboard() {
                 ...t,
                 raw_fields_json: { ...t.raw_fields_json, work_item_type: 'Task', web_url: t.web_url || t.raw_fields_json?.web_url },
               })) as Feature[]
-              if (items.length > 0) openDrillDown('Total de Tasks', items, 'Tasks em aberto (New, Active)')
+              if (items.length > 0) openDrillDown("Total de Task's", items, "Task's em Aberto (New e Active)")
             }}
           >
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total de Tasks</div>
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total de Task's</div>
             <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">
               {tasksSummaryData ? taskPerformanceKpis.total : '–'}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Tasks em aberto (New, Active)</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task's em Aberto (New e Active)</div>
           </div>
           <div
             className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-red-500 cursor-pointer hover:opacity-90 transition-opacity"
@@ -1302,28 +1303,39 @@ export default function InteractiveDashboard() {
                   ...t,
                   raw_fields_json: { ...t.raw_fields_json, work_item_type: 'Task', web_url: t.web_url || t.raw_fields_json?.web_url },
                 })) as Feature[]
-              if (items.length > 0) openDrillDown('Tasks Atrasadas', items, 'Tasks atrasadas')
+              if (items.length > 0) openDrillDown("Task's Atrasadas", items, "Task's Atrasadas")
             }}
           >
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tasks Atrasadas</div>
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Task's Atrasadas</div>
             <div className="text-2xl font-bold text-red-600 dark:text-red-400">
               {tasksSummaryData ? taskPerformanceKpis.overdue : '–'}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Com prazo vencido</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task's Atrasadas</div>
           </div>
           <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-cyan-500">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa Conclusão Tasks</div>
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Task's Fechadas</div>
             <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">
               {tasksSummaryData ? `${taskPerformanceKpis.taxaConclusao}%` : '–'}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Closed+Done+Resolved / total</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task's Fechadas (Closed e Resolved)</div>
           </div>
-          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-indigo-500">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tasks Em Andamento</div>
+          <div
+            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-indigo-500 cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => {
+              const items = (tasksOpenData?.items ?? [])
+                .filter((t) => (t as any).days_overdue != null && (t as any).days_overdue > 0)
+                .map((t) => ({
+                  ...t,
+                  raw_fields_json: { ...t.raw_fields_json, work_item_type: 'Task', web_url: t.web_url || t.raw_fields_json?.web_url },
+                })) as Feature[]
+              if (items.length > 0) openDrillDown("Task's Atrasadas", items, "Task's Atrasadas")
+            }}
+          >
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa de atraso</div>
             <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-              {tasksSummaryData ? taskPerformanceKpis.emAndamento : '–'}
+              {tasksSummaryData ? `${taskPerformanceKpis.taxaAtraso}%` : '–'}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Abertas (não fechadas)</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task&apos;s Atrasadas</div>
           </div>
         </div>
 
