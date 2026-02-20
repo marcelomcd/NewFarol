@@ -74,7 +74,7 @@ O **NewFarol** é uma plataforma completa e moderna para visualização e gestã
   - **Projetos por PMO**: Barras horizontais com top 10 PMOs (lista "exceto top 10" removida — prevê-se que não ultrapasse 10 PMOs)
   - **Projetos por Responsável**: Barras verticais com top 10 + lista encolhível "Todos os responsáveis (exceto top 10)" (expansível ao clicar). Contagem e modal consideram apenas projetos em aberto (consistência entre número exibido e itens no drill-down)
 - **Filtros Avançados**: Por cliente, PMO, estado, farol e período
-- **Exportação para Excel**: Relatórios completos em formato .xlsx
+- **Filtros Avançados**: Responsável, Cliente, Estado, PMO (com Limpar Filtros compacto ao lado)
 - **Modo Escuro/Claro**: Interface adaptável com glassmorphism
 
 ### 🔍 Gestão de Features
@@ -671,10 +671,25 @@ NewFarol/
 │       ├── package.json
 │       └── vite.config.js
 │
-├── start.bat                            # Script de inicialização (Windows)
+├── start.bat                            # Script de inicialização (chama update-serviceup.bat)
+├── update-serviceup.bat                 # Sincroniza Painel Service UP (suporta /silent)
 ├── .gitignore                           # Arquivos ignorados pelo Git
 └── README.md                            # Este arquivo
 ```
+
+### 📊 Arquitetura do Dashboard Interativo
+
+O `InteractiveDashboard` foi refatorado para facilitar manutenção:
+
+| Arquivo | Responsabilidade |
+|---------|------------------|
+| `frontend/src/components/Dashboard/InteractiveDashboard.tsx` | Componente principal, orquestra UI e gráficos |
+| `frontend/src/components/Dashboard/hooks/useInteractiveDashboard.ts` | Hook com lógica de dados, filtros e métricas (para uso futuro/migração gradual) |
+| `frontend/src/components/Dashboard/sections/DashboardHeader.tsx` | Cabeçalho e alerta de erro |
+| `frontend/src/components/Dashboard/sections/DashboardFiltersSection.tsx` | Filtros (Responsável, Cliente, Estado, PMO, Limpar Filtros) |
+| `frontend/src/utils/featureExtractors.ts` | `extractPMO`, `extractResponsavelCliente`, `getTargetDate`, `normalizeClientKey` |
+
+**Constantes** centralizadas em `frontend/src/constants/dashboard.ts`.
 
 ---
 
@@ -1186,7 +1201,7 @@ A pasta **Painel Service UP** é sincronizada com o repositório do Davi Silva (
 
 **Secrets (repositório privado):** configurar no GitHub/Azure o secret **SERVICEUP_SYNC_TOKEN** ou **AZURE_DEVOPS_PAT** (PAT com permissão de leitura no repo `Qualiit.Portal.Clientes.v2` e de escrita no repo New Farol, para o push).
 
-**Arquivos .bat:** os arquivos `*.bat` (ex.: `update-serviceup.bat`, `start.bat`) **não são versionados** (estão no `.gitignore`). Podem ser usados apenas localmente; a sincronização em produção é feita pelo workflow.
+**Arquivos .bat:** os arquivos `*.bat` (ex.: `update-serviceup.bat`, `start.bat`) podem estar no `.gitignore`. Se disponíveis localmente, o `start.bat` **chama automaticamente** o `update-serviceup.bat` antes de iniciar os servidores, garantindo que o Painel Service UP esteja sempre atualizado com o repositório Davi Silva. Use `update-serviceup.bat /silent` para execução sem pausa (modo usado pelo start.bat).
 
 ### 📝 Fluxo de Trabalho
 

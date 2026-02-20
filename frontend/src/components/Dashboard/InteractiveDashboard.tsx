@@ -27,6 +27,14 @@ import PMOsModal from '../Modal/PMOsModal'
 import CustomTooltip from './CustomTooltip'
 import { FarolStatus, getFarolStatusSummary, normalizeFarolStatus } from '../../utils/farol'
 import { normalizarStatus } from '../../utils/statusNormalization'
+import {
+  normalizeClientKey,
+  extractPMO,
+  extractResponsavelCliente,
+  getTargetDate,
+} from '../../utils/featureExtractors'
+import DashboardHeader from './sections/DashboardHeader'
+import DashboardFiltersSection from './sections/DashboardFiltersSection'
 
 // Cores para gráficos
 const COLORS = {
@@ -213,81 +221,7 @@ export default function InteractiveDashboard() {
     return combinedItems
   }, [featuresData, openFeaturesWiqlData, closedFeaturesWiqlData])
 
-  // Normalizar nomes de cliente para comparação consistente (evita "QUALIIT" vs "Quali IT", caixa, acentos, etc.)
-  const normalizeClientKey = (value?: string | null) => {
-    if (!value) return ''
-    return value
-      .toString()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '')
-      .trim()
-  }
-
-  // Helpers (baseado no Backup) para PMO / Responsável / TargetDate
-  // IMPORTANTE: extractPMO deve ser definido antes de filteredItems que o usa
-  const extractPMO = (item: Feature): string => {
-    // 1) campo normalizado
-    if (item.pmo && item.pmo.trim() !== '') return item.pmo.trim()
-
-    // 2) raw_fields_json custom PMO
-    const raw: any = (item as any).raw_fields_json
-    if (raw) {
-      const customPMO = raw['Custom.PMO'] || raw['Custom.Pmo']
-      if (customPMO) {
-        if (typeof customPMO === 'object' && customPMO.displayName && customPMO.displayName.trim() !== '') {
-          return customPMO.displayName.trim()
-        }
-        if (typeof customPMO === 'string' && customPMO.trim() !== '') return customPMO.trim()
-      }
-
-      // 3) fallback AssignedTo
-      const assignedTo = raw['System.AssignedTo']
-      if (assignedTo && typeof assignedTo === 'object' && assignedTo.displayName && assignedTo.displayName.trim() !== '') {
-        return assignedTo.displayName.trim()
-      }
-      if (typeof assignedTo === 'string' && assignedTo.trim() !== '') return assignedTo.trim()
-    }
-
-    // 4) fallback assigned_to (string)
-    const assigned = (item as any).assigned_to
-    if (assigned && typeof assigned === 'string' && assigned.trim() !== '') return assigned.trim()
-
-    return 'Não atribuído'
-  }
-
-  const extractResponsavelCliente = (item: Feature): string => {
-    // 0) campo já normalizado pelo backend
-    const direct = (item as any).responsible
-    if (direct && typeof direct === 'string' && direct.trim() !== '') return direct.trim()
-
-    const raw: any = (item as any).raw_fields_json
-    if (raw) {
-      const rc = raw['Custom.ResponsavelCliente']
-      if (rc) {
-        if (typeof rc === 'object' && rc.displayName && rc.displayName.trim() !== '') return rc.displayName.trim()
-        if (typeof rc === 'string' && rc.trim() !== '') return rc.trim()
-      }
-    }
-    return 'Não atribuído'
-  }
-
-  const getTargetDate = (item: Feature): Date | null => {
-    const direct = (item as any).target_date
-    const raw: any = (item as any).raw_fields_json
-    const rawDate = raw ? raw['Microsoft.VSTS.Scheduling.TargetDate'] : null
-    const val = direct || rawDate
-    if (!val) return null
-    try {
-      const d = new Date(val)
-      return Number.isNaN(d.getTime()) ? null : d
-    } catch {
-      return null
-    }
-  }
-
-  // Filtrar por seleções
+  // Filtrar por seleções (helpers em utils/featureExtractors)
   const filteredItems = useMemo(() => {
     let items = baseItems
 
@@ -873,24 +807,7 @@ export default function InteractiveDashboard() {
 
   return (
     <div className="space-y-6 px-2 pt-2 pb-6 animate-fadeIn">
-      {/* Alerta de fonte de dados (evita "números inflados" por fallback do DB) */}
-      {!consolidatedLoading && consolidatedError && (
-        <div className="glass dark:glass-dark p-4 rounded-lg border border-red-300/40 dark:border-red-500/30">
-          <div className="text-sm text-red-700 dark:text-red-300 font-medium">
-            Falha ao carregar dados consolidados do Azure DevOps (`/api/azdo/consolidated`). Os números podem ficar divergentes
-            (fallback do banco/local).
-          </div>
-          <div className="text-xs text-red-600/80 dark:text-red-300/80 mt-1">
-            Verifique se o backend está com `AZDO_PAT` configurado e acessando o Azure DevOps sem 302/401.
-          </div>
-        </div>
-      )}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
-          <span className="text-4xl">📊</span>
-          <span>Dashboard Interativo</span>
-        </h1>
-      </div>
+      <DashboardHeader consolidatedError={consolidatedError} consolidatedLoading={consolidatedLoading} />
 
       {/* Layout: Semáforo à esquerda, Filtros e Cards à direita */}
       <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 lg:items-stretch">
@@ -942,97 +859,28 @@ export default function InteractiveDashboard() {
         {/* Coluna direita: Filtros e Cards */}
         <div className="flex flex-col lg:h-full justify-between gap-4">
           {/* Filtros */}
-          <div className="glass dark:glass-dark p-5 rounded-lg grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 items-end">
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Responsável</label>
-              <select
-                value={selectedResponsavel || ''}
-                onChange={(e) => setSelectedResponsavel(e.target.value || null)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
-              >
-                <option value="">Todos</option>
-                {uniqueResponsibles.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Cliente</label>
-              <select
-                value={selectedClient || ''}
-                onChange={(e) => setSelectedClient(e.target.value || null)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
-              >
-                <option value="">Todos</option>
-                {clientsForFilter.active.length > 0 && (
-                  <>
-                    {clientsForFilter.active.map((client) => (
-                      <option key={client} value={client}>
-                        {client}
-                      </option>
-                    ))}
-                    {clientsForFilter.closed.length > 0 && <option disabled>─────────────────</option>}
-                  </>
-                )}
-                {clientsForFilter.closed.map((client) => (
-                  <option key={client} value={client}>
-                    {client}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Estado</label>
-              <select
-                value={selectedState || ''}
-                onChange={(e) => setSelectedState(e.target.value || null)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
-              >
-                <option value="">Todos</option>
-                {uniqueStates.map((state) => (
-                  <option key={state} value={state}>
-                    {state}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">PMO</label>
-              <select
-                value={selectedPMO || ''}
-                onChange={(e) => setSelectedPMO(e.target.value || null)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
-              >
-                <option value="">Todos</option>
-                {uniquePMOs.map((pmo) => (
-                  <option key={pmo} value={pmo}>
-                    {pmo}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              {hasFilters && (
-                <button
-                  onClick={() => {
-                    setSelectedFarol(null)
-                    setSelectedClient(null)
-                    setSelectedState(null)
-                    setSelectedPMO(null)
-                    setSelectedResponsavel(null)
-                  }}
-                  className="text-xs px-2 py-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors whitespace-nowrap"
-                >
-                  Limpar Filtros
-                </button>
-              )}
-            </div>
-          </div>
+          <DashboardFiltersSection
+            selectedResponsavel={selectedResponsavel}
+            setSelectedResponsavel={setSelectedResponsavel}
+            selectedClient={selectedClient}
+            setSelectedClient={setSelectedClient}
+            selectedState={selectedState}
+            setSelectedState={setSelectedState}
+            selectedPMO={selectedPMO}
+            setSelectedPMO={setSelectedPMO}
+            uniqueResponsibles={uniqueResponsibles}
+            clientsForFilter={clientsForFilter}
+            uniqueStates={uniqueStates}
+            uniquePMOs={uniquePMOs}
+            hasFilters={hasFilters}
+            clearFilters={() => {
+              setSelectedFarol(null)
+              setSelectedClient(null)
+              setSelectedState(null)
+              setSelectedPMO(null)
+              setSelectedResponsavel(null)
+            }}
+          />
 
           {/* Cards principais */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
