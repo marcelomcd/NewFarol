@@ -128,6 +128,15 @@ export default function InteractiveDashboard() {
     refetchOnWindowFocus: false,
   })
 
+  // Tasks fechadas - para modal do KPI Task's Fechadas
+  const { data: tasksClosedData } = useQuery({
+    queryKey: ['tasks', 'closed'],
+    queryFn: () => featuresCountApi.getTasksClosedWiql(),
+    staleTime: 300_000,
+    gcTime: 600_000,
+    refetchOnWindowFocus: false,
+  })
+
   const lastNMonthsForTasks = useMemo(() => {
     const n = evolucaoTasksMeses
     const result: { month: number; year: number }[] = []
@@ -461,6 +470,31 @@ export default function InteractiveDashboard() {
       return t < today
     })
   }, [activeItems])
+
+  // Projetos em dia (abertos, não atrasados)
+  const onTimeProjects = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return activeItems.filter((item) => {
+      const td = getTargetDate(item)
+      if (!td) return true
+      const t = new Date(td)
+      t.setHours(0, 0, 0, 0)
+      return t >= today
+    })
+  }, [activeItems])
+
+  // Projetos com farol Sem Problema
+  const semProblemaProjects = useMemo(
+    () => activeItems.filter((item) => normalizeFarolStatus(item.farol_status) === 'Sem Problema'),
+    [activeItems]
+  )
+
+  // Projetos encerrados (para modal)
+  const closedProjectsItems = useMemo(
+    () => (closedFeaturesWiqlData?.items ?? []) as Feature[],
+    [closedFeaturesWiqlData?.items]
+  )
 
   // Próximos do prazo: 0..7 dias (inclusive)
   const nearDeadlineProjects = useMemo(() => {
@@ -1253,24 +1287,44 @@ export default function InteractiveDashboard() {
           <span>Análise de Performance</span>
         </h2>
 
-        {/* Scorecard KPIs */}
+        {/* Scorecard KPIs - Projetos */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-blue-500">
+          <div
+            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-blue-500 cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => {
+              if (closedProjectsItems.length > 0) openDrillDown('Projetos Encerrados', closedProjectsItems, 'Projetos Encerrado')
+            }}
+          >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa de Conclusão</div>
             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{performanceKpis.taxaConclusao}%</div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Projetos Encerrado</div>
           </div>
-          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-amber-500">
+          <div
+            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-amber-500 cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => {
+              if (overdueProjects.length > 0) openDrillDown('Projetos Atrasados', overdueProjects as Feature[], 'Projetos Atrasados')
+            }}
+          >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa de Atraso</div>
             <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{performanceKpis.taxaAtraso}%</div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Projetos Atrasados</div>
           </div>
-          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-green-500">
+          <div
+            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-green-500 cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => {
+              if (semProblemaProjects.length > 0) openDrillDown('Projetos Sem Problema', semProblemaProjects as Feature[], 'Sem Problema')
+            }}
+          >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Saúde do Farol</div>
             <div className="text-2xl font-bold text-green-600 dark:text-green-400">{performanceKpis.saudeFarol}%</div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Sem Problema</div>
           </div>
-          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-emerald-500">
+          <div
+            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-emerald-500 cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => {
+              if (onTimeProjects.length > 0) openDrillDown('Projetos em Dia', onTimeProjects as Feature[], 'Abertos em Dia')
+            }}
+          >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">No Prazo</div>
             <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{performanceKpis.noPrazo}%</div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Abertos em Dia</div>
@@ -1279,7 +1333,16 @@ export default function InteractiveDashboard() {
 
         {/* KPIs de Tasks - todos em percentual */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-cyan-500">
+          <div
+            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-cyan-500 cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => {
+              const items = (tasksClosedData?.items ?? []).map((t) => ({
+                ...t,
+                raw_fields_json: { ...(t as any).raw_fields_json, work_item_type: 'Task', web_url: (t as any).web_url || (t as any).raw_fields_json?.web_url },
+              })) as Feature[]
+              if (items.length > 0) openDrillDown("Task's Fechadas", items, "Task's Fechadas (Closed e Resolved)")
+            }}
+          >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Task&apos;s Fechadas</div>
             <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">
               {tasksSummaryData ? `${taskPerformanceKpis.taxaConclusao}%` : '–'}
@@ -1320,7 +1383,18 @@ export default function InteractiveDashboard() {
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task&apos;s em Aberto (New e Active)</div>
           </div>
-          <div className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-emerald-500">
+          <div
+            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-emerald-500 cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => {
+              const items = (tasksOpenData?.items ?? [])
+                .filter((t) => (t as any).days_overdue == null || (t as any).days_overdue <= 0)
+                .map((t) => ({
+                  ...t,
+                  raw_fields_json: { ...(t as any).raw_fields_json, work_item_type: 'Task', web_url: (t as any).web_url || (t as any).raw_fields_json?.web_url },
+                })) as Feature[]
+              if (items.length > 0) openDrillDown("Task's em Dia", items, 'Abertos em Dia')
+            }}
+          >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">No Prazo</div>
             <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
               {tasksSummaryData ? `${taskPerformanceKpis.noPrazo}%` : '–'}
