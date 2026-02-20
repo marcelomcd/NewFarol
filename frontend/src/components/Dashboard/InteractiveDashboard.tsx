@@ -93,6 +93,9 @@ export default function InteractiveDashboard() {
   const [clientsModal, setClientsModal] = useState<{ isOpen: boolean }>({ isOpen: false })
   const [pmosModal, setPMOsModal] = useState<{ isOpen: boolean }>({ isOpen: false })
   const [isExporting, setIsExporting] = useState(false)
+  const [evolucaoEntregasMeses, setEvolucaoEntregasMeses] = useState(6)
+  const [evolucaoTasksMeses, setEvolucaoTasksMeses] = useState(6)
+  const [closedByDayDias, setClosedByDayDias] = useState(30)
 
   // Fonte “DB” (pode falhar — não pode derrubar o dashboard)
   const { data: featuresData, isLoading: featuresLoading } = useQuery({
@@ -126,20 +129,21 @@ export default function InteractiveDashboard() {
     staleTime: 60_000,
   })
 
-  const lastSixMonths = useMemo(() => {
+  const lastNMonthsForTasks = useMemo(() => {
+    const n = evolucaoTasksMeses
     const result: { month: number; year: number }[] = []
-    for (let i = 5; i >= 0; i--) {
+    for (let i = n - 1; i >= 0; i--) {
       const d = new Date()
       d.setMonth(d.getMonth() - i)
       result.push({ month: d.getMonth() + 1, year: d.getFullYear() })
     }
     return result
-  }, [])
+  }, [evolucaoTasksMeses])
 
   const tasksByMonthQueries = useQueries({
-    queries: lastSixMonths.map(({ month, year }) => ({
-      queryKey: ['azdo', 'counts-by-month-tasks', month, year],
-      queryFn: () => azdoApi.getCountsByMonth(month, year, false),
+    queries: lastNMonthsForTasks.map(({ month, year }) => ({
+      queryKey: ['azdo', 'counts-by-month-tasks', month, year, true],
+      queryFn: () => azdoApi.getCountsByMonth(month, year, true),
       staleTime: 60_000,
     })),
   })
@@ -650,41 +654,45 @@ export default function InteractiveDashboard() {
       .slice(0, 10)
   }, [filteredItems])
 
-  // Evolução de entregas (últimos 6 meses)
+  // Evolução de entregas (últimos N meses)
   const closedByMonth = useMemo(() => {
     const closedItems = (closedFeaturesWiqlData?.items || featuresData?.items || []).filter((item: any) => {
       const state = normalizarStatus(item.state || '')
       return state === 'Encerrado' || item.state === 'Closed'
-    })
+    }) as Feature[]
 
+    const n = evolucaoEntregasMeses
     const cutoff = new Date()
-    cutoff.setMonth(cutoff.getMonth() - 6)
+    cutoff.setMonth(cutoff.getMonth() - n)
     cutoff.setDate(1)
     cutoff.setHours(0, 0, 0, 0)
 
-    const byMonth = closedItems.reduce((acc: Record<string, number>, item: any) => {
-      if (!item.changed_date) return acc
+    const byMonthItems: Record<string, Feature[]> = {}
+    for (const item of closedItems) {
+      if (!item.changed_date) continue
       const changed = new Date(item.changed_date)
-      if (Number.isNaN(changed.getTime())) return acc
-      if (changed < cutoff) return acc
+      if (Number.isNaN(changed.getTime())) continue
+      if (changed < cutoff) continue
       const key = format(changed, 'yyyy-MM')
-      acc[key] = (acc[key] || 0) + 1
-      return acc
-    }, {})
+      if (!byMonthItems[key]) byMonthItems[key] = []
+      byMonthItems[key].push(item)
+    }
 
-    const months: { monthKey: string; label: string; closed: number }[] = []
-    for (let i = 5; i >= 0; i--) {
+    const months: { monthKey: string; label: string; closed: number; items: Feature[] }[] = []
+    for (let i = n - 1; i >= 0; i--) {
       const d = new Date()
       d.setMonth(d.getMonth() - i)
       const key = format(d, 'yyyy-MM')
+      const items = byMonthItems[key] || []
       months.push({
         monthKey: key,
         label: format(d, 'MMM/yy', { locale: ptBR }),
-        closed: byMonth[key] || 0,
+        closed: items.length,
+        items,
       })
     }
     return months
-  }, [closedFeaturesWiqlData, featuresData])
+  }, [closedFeaturesWiqlData, featuresData, evolucaoEntregasMeses])
 
   // Dados para gráfico Saúde do Farol (pie)
   const farolPieData = useMemo(() => {
@@ -699,41 +707,43 @@ export default function InteractiveDashboard() {
       .filter((d) => d.value > 0)
   }, [farolSummary])
 
-  // KPIs de Tasks
+  // KPIs de Tasks - Total e Atrasadas só consideram tasks em aberto (New, Active)
   const taskPerformanceKpis = useMemo(() => {
-    const total = tasksSummaryData?.total ?? 0
-    const overdue = tasksSummaryData?.overdue_count ?? 0
+    const total = tasksSummaryData?.total ?? 0 // Backend retorna só New+Active
+    const overdue = tasksSummaryData?.overdue_count ?? 0 // New+Active com prazo vencido
     const byState = tasksSummaryData?.by_state ?? {}
-    const closedStates = ['Closed', 'Done', 'Resolved']
+    const closedStates = ['Closed', 'Done', 'Resolved', 'Removed']
     const closed = Object.entries(byState)
       .filter(([state]) => closedStates.includes(state))
       .reduce((sum, [, count]) => sum + count, 0)
-    const taxaConclusao = total > 0 ? Math.round((closed / total) * 1000) / 10 : 0
-    const emAndamento = total - closed
+    const totalGeral = total + closed
+    const taxaConclusao = totalGeral > 0 ? Math.round((closed / totalGeral) * 1000) / 10 : 0
+    const emAndamento = total
     return { total, overdue, taxaConclusao, emAndamento }
   }, [tasksSummaryData])
 
-  // Evolução de tasks fechadas (6 meses)
+  // Evolução de tasks fechadas (N meses)
   const tasksClosedByMonth = useMemo(() => {
-    return lastSixMonths.map(({ month, year }, idx) => {
+    return lastNMonthsForTasks.map(({ month, year }, idx) => {
       const res = tasksByMonthQueries[idx]?.data
       const d = new Date(year, month - 1, 1)
+      const items = (res?.tasks_closed_items || []) as Feature[]
       return {
         monthKey: format(d, 'yyyy-MM'),
         label: format(d, 'MMM/yy', { locale: ptBR }),
         closed: res?.tasks_closed ?? 0,
+        items,
       }
     })
-  }, [lastSixMonths, tasksByMonthQueries])
+  }, [lastNMonthsForTasks, tasksByMonthQueries])
 
-  // Fechadas por dia (últimos 30 dias): prefere WIQL closed; fallback DB.
-  // Regra: NÃO exibir dias com 0 e permitir drilldown por dia.
+  // Fechadas por dia (últimos N dias): prefere WIQL closed; fallback DB.
   const closedByDay = useMemo(() => {
     const closedItems = (closedFeaturesWiqlData?.items || featuresData?.items || []).filter((item: any) => {
       const state = normalizarStatus(item.state || '')
       return state === 'Encerrado' || item.state === 'Closed'
     })
-    const cutoff = subDays(new Date(), 29)
+    const cutoff = subDays(new Date(), closedByDayDias - 1)
     cutoff.setHours(0, 0, 0, 0)
 
     const byDay = closedItems.reduce((acc: Record<string, number>, item: any) => {
@@ -746,7 +756,6 @@ export default function InteractiveDashboard() {
       return acc
     }, {})
 
-    // Apenas dias com fechamentos (>0)
     return Object.entries(byDay as Record<string, number>)
       .filter(([, count]) => count > 0)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -755,7 +764,7 @@ export default function InteractiveDashboard() {
         date: format(new Date(iso), 'dd/MM', { locale: ptBR }),
         closed: Number(count),
       }))
-  }, [closedFeaturesWiqlData, featuresData])
+  }, [closedFeaturesWiqlData, featuresData, closedByDayDias])
 
   const handleClosedDayClick = (isoDate: string) => {
     const items = (closedFeaturesWiqlData?.items || featuresData?.items || []) as Feature[]
@@ -1274,21 +1283,22 @@ export default function InteractiveDashboard() {
           <div
             className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-teal-500 cursor-pointer hover:opacity-90 transition-opacity"
             onClick={() => {
-              const tasks = tasksAllData?.tasks ?? []
+              const OPEN_STATES = ['New', 'Active']
+              const tasks = (tasksAllData?.tasks ?? []).filter((t) => OPEN_STATES.includes(t.state || ''))
               const items = tasks.map((t) => ({
                 id: t.id,
                 title: t.title,
                 state: t.state,
                 raw_fields_json: { work_item_type: 'Task', web_url: t.web_url },
               })) as unknown as Feature[]
-              if (items.length > 0) openDrillDown('Total de Tasks', items, 'Todas as tasks')
+              if (items.length > 0) openDrillDown('Total de Tasks', items, 'Tasks em aberto (New, Active)')
             }}
           >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total de Tasks</div>
             <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">
               {tasksSummaryData ? taskPerformanceKpis.total : '–'}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Todas as tasks</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Tasks em aberto (New, Active)</div>
           </div>
           <div
             className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-red-500 cursor-pointer hover:opacity-90 transition-opacity"
@@ -1343,9 +1353,8 @@ export default function InteractiveDashboard() {
                   onClick={(evt: any) => {
                     const pmoName = evt?.payload?.name ?? evt?.name
                     const row = pmoPerformanceData.find((p) => p.name === pmoName)
-                    if (row) {
-                      const all = [...row.items.closed, ...row.items.onTime, ...row.items.overdue]
-                      if (all.length > 0) openDrillDown(`PMO: ${row.name}`, all, `PMO: ${row.name}`)
+                    if (row?.items.closed.length) {
+                      openDrillDown(`PMO: ${row.name} - Concluídos`, row.items.closed, `PMO: ${row.name} | Concluídos`)
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -1358,9 +1367,8 @@ export default function InteractiveDashboard() {
                   onClick={(evt: any) => {
                     const pmoName = evt?.payload?.name ?? evt?.name
                     const row = pmoPerformanceData.find((p) => p.name === pmoName)
-                    if (row) {
-                      const all = [...row.items.closed, ...row.items.onTime, ...row.items.overdue]
-                      if (all.length > 0) openDrillDown(`PMO: ${row.name}`, all, `PMO: ${row.name}`)
+                    if (row?.items.onTime.length) {
+                      openDrillDown(`PMO: ${row.name} - Em dia`, row.items.onTime, `PMO: ${row.name} | Em dia`)
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -1373,9 +1381,8 @@ export default function InteractiveDashboard() {
                   onClick={(evt: any) => {
                     const pmoName = evt?.payload?.name ?? evt?.name
                     const row = pmoPerformanceData.find((p) => p.name === pmoName)
-                    if (row) {
-                      const all = [...row.items.closed, ...row.items.onTime, ...row.items.overdue]
-                      if (all.length > 0) openDrillDown(`PMO: ${row.name}`, all, `PMO: ${row.name}`)
+                    if (row?.items.overdue.length) {
+                      openDrillDown(`PMO: ${row.name} - Atrasados`, row.items.overdue, `PMO: ${row.name} | Atrasados`)
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -1385,13 +1392,47 @@ export default function InteractiveDashboard() {
           </div>
 
           <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
-            <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">Evolução de Entregas (6 meses)</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-white">
+                Evolução de Entregas ({evolucaoEntregasMeses} meses)
+              </h3>
+              <div className="flex gap-1">
+                {[3, 6, 9, 12].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setEvolucaoEntregasMeses(m)}
+                    className={`px-2 py-1 rounded text-sm font-medium transition-colors ${
+                      evolucaoEntregasMeses === m
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {m}m
+                  </button>
+                ))}
+              </div>
+            </div>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={closedByMonth}>
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                 <YAxis />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="closed" fill={COLORS.primary} name="Projetos fechados" />
+                <Bar
+                  dataKey="closed"
+                  fill={COLORS.primary}
+                  name="Projetos fechados"
+                  onClick={(evt: any) => {
+                    const row = closedByMonth.find((r) => r.label === evt?.payload?.label)
+                    if (row?.items?.length) {
+                      openDrillDown(
+                        `Projetos fechados em ${row.label}`,
+                        row.items,
+                        `Fechados em: ${row.label}`
+                      )
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1428,13 +1469,47 @@ export default function InteractiveDashboard() {
           </div>
 
           <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
-            <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">Evolução de Tasks Fechadas (6 meses)</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-white">
+                Evolução de Tasks Fechadas ({evolucaoTasksMeses} meses)
+              </h3>
+              <div className="flex gap-1">
+                {[3, 6, 9, 12].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setEvolucaoTasksMeses(m)}
+                    className={`px-2 py-1 rounded text-sm font-medium transition-colors ${
+                      evolucaoTasksMeses === m
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {m}m
+                  </button>
+                ))}
+              </div>
+            </div>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={tasksClosedByMonth}>
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                 <YAxis />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="closed" fill="#14b8a6" name="Tasks fechadas" />
+                <Bar
+                  dataKey="closed"
+                  fill="#14b8a6"
+                  name="Tasks fechadas"
+                  onClick={(evt: any) => {
+                    const row = tasksClosedByMonth.find((r) => r.label === evt?.payload?.label)
+                    if (row?.items?.length) {
+                      openDrillDown(
+                        `Tasks fechadas em ${row.label}`,
+                        row.items as Feature[],
+                        `Tasks em: ${row.label}`
+                      )
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1474,10 +1549,27 @@ export default function InteractiveDashboard() {
         </div>
 
         <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
-          <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2">
-            <span>📈</span>
-            <span>Features Fechadas por Dia (últimos 30 dias)</span>
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+              <span>📈</span>
+              <span>Features Fechadas por Dia (últimos {closedByDayDias} dias)</span>
+            </h2>
+            <div className="flex gap-1">
+              {[30, 60, 90, 120].map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setClosedByDayDias(d)}
+                  className={`px-2 py-1 rounded text-sm font-medium transition-colors ${
+                    closedByDayDias === d
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {d}d
+                </button>
+              ))}
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={closedByDay}>
               <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} interval={0} />

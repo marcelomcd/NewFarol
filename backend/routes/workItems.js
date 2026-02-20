@@ -321,8 +321,10 @@ router.get('/tasks/summary', async (req, res) => {
     const taskIds = workItemRefs.map(ref => parseInt(ref.id)).filter(id => !isNaN(id));
     const tasksData = await wiql.getWorkItems(taskIds);
 
+    const OPEN_STATES = ['New', 'Active'];
     const byState = {};
     const byAssignedTo = {};
+    let openCount = 0;
     let overdueCount = 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -331,29 +333,28 @@ router.get('/tasks/summary', async (req, res) => {
       const fields = task.fields || {};
       const state = fields['System.State'] || 'Sem Estado';
       const assignedTo = extractDisplayName(fields['System.AssignedTo']);
+      const isOpen = OPEN_STATES.includes(state);
 
       byState[state] = (byState[state] || 0) + 1;
       if (assignedTo) {
         byAssignedTo[assignedTo] = (byAssignedTo[assignedTo] || 0) + 1;
       }
 
-      // Verificar se está atrasada
-      const targetDateStr = fields['Microsoft.VSTS.Scheduling.TargetDate'] || '';
-      if (targetDateStr && !['Closed', 'Done', 'Resolved'].includes(state)) {
-        try {
-          const target = new Date(targetDateStr);
-          target.setHours(0, 0, 0, 0);
-          if (target < today) {
-            overdueCount++;
-          }
-        } catch (e) {
-          // Ignora erro
+      if (isOpen) {
+        openCount++;
+        const targetDateStr = fields['Microsoft.VSTS.Scheduling.TargetDate'] || '';
+        if (targetDateStr) {
+          try {
+            const target = new Date(targetDateStr);
+            target.setHours(0, 0, 0, 0);
+            if (target < today) overdueCount++;
+          } catch (e) { /* ignora */ }
         }
       }
     }
 
     res.json({
-      total: tasksData.length,
+      total: openCount,
       by_state: byState,
       overdue_count: overdueCount,
       by_assigned_to: byAssignedTo,

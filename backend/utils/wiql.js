@@ -285,7 +285,7 @@ export function getOverdueTasksQuery(projectId = null) {
         [System.TeamProject] = '${rootProject}'
         AND [Microsoft.VSTS.Scheduling.TargetDate] <= @startOfDay
         AND [System.WorkItemType] = 'Task'
-        AND [System.State] <> 'Closed'
+        AND [System.State] IN ('New', 'Active')
   `;
   
   return query.trim();
