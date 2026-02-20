@@ -1,9 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { workItemsApi, Task } from '../services/api'
+import { featuresCountApi } from '../services/api'
 import Tooltip from '../components/Tooltip/Tooltip'
-
-const CLOSED_STATES = ['Closed']
 
 export default function CompletedTasks() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -14,12 +12,12 @@ export default function CompletedTasks() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['tasks', 'closed'],
-    queryFn: () => workItemsApi.getTasks({ state: 'Closed' }),
+    queryFn: () => featuresCountApi.getTasksClosedWiql(),
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   })
 
-  const completedTasks = useMemo(() => data?.tasks ?? [], [data])
+  const completedTasks = useMemo(() => data?.items ?? [], [data])
 
   const filteredTasks = useMemo(() => {
     let filtered = completedTasks

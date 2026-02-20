@@ -264,6 +264,34 @@ export function getTasksQuery(projectId = null) {
 }
 
 /**
+ * Gera query WIQL para buscar Tasks abertas (New, Active)
+ */
+export function getTasksOpenQuery(projectId = null) {
+  const rootProject = process.env.AZDO_ROOT_PROJECT || 'Quali IT - Inovação e Tecnologia';
+  return `
+    SELECT [System.Id]
+    FROM workitems
+    WHERE [System.TeamProject] = '${rootProject}'
+      AND [System.WorkItemType] = 'Task'
+      AND [System.State] IN ('New', 'Active')
+  `.trim();
+}
+
+/**
+ * Gera query WIQL para buscar Tasks fechadas (Closed)
+ */
+export function getTasksClosedQuery(projectId = null) {
+  const rootProject = process.env.AZDO_ROOT_PROJECT || 'Quali IT - Inovação e Tecnologia';
+  return `
+    SELECT [System.Id]
+    FROM workitems
+    WHERE [System.TeamProject] = '${rootProject}'
+      AND [System.WorkItemType] = 'Task'
+      AND [System.State] = 'Closed'
+  `.trim();
+}
+
+/**
  * Gera query WIQL para buscar Tasks atrasadas
  */
 export function getOverdueTasksQuery(projectId = null) {

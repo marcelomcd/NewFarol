@@ -5,8 +5,8 @@
  */
 import express from 'express';
 import { WIQLClient } from '../utils/wiqlClient.js';
-import { getFeaturesQuery } from '../utils/wiql.js';
-import { extractClientName, extractPmoName, normalizeFarolStatus } from '../utils/normalization.js';
+import { getFeaturesQuery, getTasksOpenQuery, getTasksClosedQuery } from '../utils/wiql.js';
+import { extractClientName, extractPmoName, extractResponsavelCliente, normalizeFarolStatus } from '../utils/normalization.js';
 import { getUserClientFilter } from '../utils/auth.js';
 import { formatWorkItemFieldsFlat, formatWorkItemFields, filterRawFields } from '../utils/fieldFormatter.js';
 import { organizeChecklistByTransition } from '../utils/checklistOrganizer.js';
@@ -16,6 +16,19 @@ dotenv.config();
 
 const router = express.Router();
 const project = process.env.AZDO_ROOT_PROJECT || 'Quali IT - Inovação e Tecnologia';
+
+/** Extrai ID do parent das relations do work item (mesmo padrão de workItems.js) */
+function extractParentId(relations) {
+  if (!relations || !Array.isArray(relations)) return null;
+  const parentRel = relations.find(
+    (r) =>
+      r?.rel?.includes('Hierarchy-Reverse') ||
+      (r?.attributes?.name && String(r.attributes.name).toLowerCase() === 'parent')
+  );
+  if (!parentRel?.url) return null;
+  const match = parentRel.url.match(/workItems\/(\d+)(?:\?|$)/);
+  return match ? parseInt(match[1], 10) : null;
+}
 
 /**
  * GET /api/features
@@ -804,6 +817,188 @@ router.get('/closed/wiql', async (req, res) => {
   } catch (error) {
     console.error('[ERROR] /api/features/closed/wiql:', error);
     res.status(500).json({ error: error.message || 'Erro ao buscar features fechadas' });
+  }
+});
+
+/**
+ * GET /api/features/tasks/open/wiql
+ * Tasks abertas (New, Active) - mesmo padrão de Features: client e assigned_to do Parent
+ */
+router.get('/tasks/open/wiql', async (req, res) => {
+  try {
+    const wiql = new WIQLClient();
+    const query = getTasksOpenQuery(null);
+    const wiqlResult = await wiql.executeWiql(project, query);
+    const workItemIds = (wiqlResult.workItems || []).map(wi => parseInt(wi.id)).filter(id => !isNaN(id));
+
+    if (workItemIds.length === 0) {
+      return res.json({ items: [], count: 0, source: 'wiql' });
+    }
+
+    // Tasks: $expand=all para obter relations (parent)
+    const tasksData = await wiql.getWorkItems(workItemIds);
+    const taskToParentId = new Map();
+    for (const t of tasksData) {
+      const pid = extractParentId(t.relations);
+      if (pid) taskToParentId.set(t.id, pid);
+    }
+
+    const uniqueParentIds = [...new Set(taskToParentId.values())];
+    const parentDataMap = new Map();
+    if (uniqueParentIds.length > 0) {
+      const parentsData = await wiql.getWorkItems(uniqueParentIds);
+      const featureParentIds = [];
+      for (const parent of parentsData) {
+        const fields = parent.fields || {};
+        const client = extractClientName(fields['System.AreaPath'], fields['System.IterationPath']);
+        let responsible = extractResponsavelCliente(fields['Custom.ResponsavelCliente']);
+        const workItemType = fields['System.WorkItemType'] || '';
+        if (!responsible && workItemType === 'User Story') {
+          const gpId = extractParentId(parent.relations);
+          if (gpId) featureParentIds.push({ parentId: parent.id, featureId: gpId });
+        }
+        parentDataMap.set(parent.id, { client: client || null, responsible: responsible || null });
+      }
+      if (featureParentIds.length > 0) {
+        const featureIds = [...new Set(featureParentIds.map(p => p.featureId))];
+        const featuresData = await wiql.getWorkItems(featureIds);
+        for (const f of featuresData) {
+          const resp = extractResponsavelCliente(f.fields?.['Custom.ResponsavelCliente']);
+          if (resp) {
+            for (const { parentId } of featureParentIds.filter(p => p.featureId === f.id)) {
+              const existing = parentDataMap.get(parentId);
+              if (existing) parentDataMap.set(parentId, { ...existing, responsible: resp });
+            }
+          }
+        }
+      }
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const items = tasksData.map(task => {
+      const fields = task.fields || {};
+      const pid = taskToParentId.get(task.id);
+      const parentData = pid && parentDataMap.has(pid) ? parentDataMap.get(pid) : { client: null, responsible: null };
+      const targetDateStr = fields['Microsoft.VSTS.Scheduling.TargetDate'] || null;
+      let daysOverdue = null;
+      if (targetDateStr) {
+        try {
+          const target = new Date(targetDateStr);
+          target.setHours(0, 0, 0, 0);
+          if (target < today) {
+            daysOverdue = Math.floor((today - target) / (1000 * 60 * 60 * 24));
+          }
+        } catch (e) { /* ignora */ }
+      }
+      return {
+        id: task.id,
+        title: fields['System.Title'] || '',
+        state: fields['System.State'] || '',
+        assigned_to: extractPmoName(fields['System.AssignedTo']) || null,
+        client: parentData.client,
+        responsible: parentData.responsible,
+        target_date: targetDateStr,
+        days_overdue: daysOverdue,
+        created_date: fields['System.CreatedDate'] || '',
+        changed_date: fields['System.ChangedDate'] || '',
+        web_url: task._links?.html?.href || '',
+        raw_fields_json: {
+          ...fields,
+          work_item_type: 'Task',
+          web_url: task._links?.html?.href || '',
+        },
+      };
+    });
+
+    res.json({ items, count: items.length, source: 'wiql' });
+  } catch (error) {
+    console.error('[ERROR] /api/features/tasks/open/wiql:', error);
+    res.status(500).json({ error: error.message || 'Erro ao buscar tasks abertas' });
+  }
+});
+
+/**
+ * GET /api/features/tasks/closed/wiql
+ * Tasks fechadas (Closed) - mesmo padrão de Features
+ */
+router.get('/tasks/closed/wiql', async (req, res) => {
+  try {
+    const wiql = new WIQLClient();
+    const query = getTasksClosedQuery(null);
+    const wiqlResult = await wiql.executeWiql(project, query);
+    const workItemIds = (wiqlResult.workItems || []).map(wi => parseInt(wi.id)).filter(id => !isNaN(id));
+
+    if (workItemIds.length === 0) {
+      return res.json({ items: [], count: 0, source: 'wiql' });
+    }
+
+    const tasksData = await wiql.getWorkItems(workItemIds);
+    const taskToParentId = new Map();
+    for (const t of tasksData) {
+      const pid = extractParentId(t.relations);
+      if (pid) taskToParentId.set(t.id, pid);
+    }
+
+    const uniqueParentIds = [...new Set(taskToParentId.values())];
+    const parentDataMap = new Map();
+    if (uniqueParentIds.length > 0) {
+      const parentsData = await wiql.getWorkItems(uniqueParentIds);
+      const featureParentIds = [];
+      for (const parent of parentsData) {
+        const fields = parent.fields || {};
+        const client = extractClientName(fields['System.AreaPath'], fields['System.IterationPath']);
+        let responsible = extractResponsavelCliente(fields['Custom.ResponsavelCliente']);
+        const workItemType = fields['System.WorkItemType'] || '';
+        if (!responsible && workItemType === 'User Story') {
+          const gpId = extractParentId(parent.relations);
+          if (gpId) featureParentIds.push({ parentId: parent.id, featureId: gpId });
+        }
+        parentDataMap.set(parent.id, { client: client || null, responsible: responsible || null });
+      }
+      if (featureParentIds.length > 0) {
+        const featureIds = [...new Set(featureParentIds.map(p => p.featureId))];
+        const featuresData = await wiql.getWorkItems(featureIds);
+        for (const f of featuresData) {
+          const resp = extractResponsavelCliente(f.fields?.['Custom.ResponsavelCliente']);
+          if (resp) {
+            for (const { parentId } of featureParentIds.filter(p => p.featureId === f.id)) {
+              const existing = parentDataMap.get(parentId);
+              if (existing) parentDataMap.set(parentId, { ...existing, responsible: resp });
+            }
+          }
+        }
+      }
+    }
+
+    const items = tasksData.map(task => {
+      const fields = task.fields || {};
+      const pid = taskToParentId.get(task.id);
+      const parentData = pid && parentDataMap.has(pid) ? parentDataMap.get(pid) : { client: null, responsible: null };
+      return {
+        id: task.id,
+        title: fields['System.Title'] || '',
+        state: fields['System.State'] || '',
+        assigned_to: extractPmoName(fields['System.AssignedTo']) || null,
+        client: parentData.client,
+        responsible: parentData.responsible,
+        target_date: fields['Microsoft.VSTS.Scheduling.TargetDate'] || null,
+        created_date: fields['System.CreatedDate'] || '',
+        changed_date: fields['System.ChangedDate'] || '',
+        web_url: task._links?.html?.href || '',
+        raw_fields_json: {
+          ...fields,
+          work_item_type: 'Task',
+          web_url: task._links?.html?.href || '',
+        },
+      };
+    });
+
+    res.json({ items, count: items.length, source: 'wiql' });
+  } catch (error) {
+    console.error('[ERROR] /api/features/tasks/closed/wiql:', error);
+    res.status(500).json({ error: error.message || 'Erro ao buscar tasks fechadas' });
   }
 });
 

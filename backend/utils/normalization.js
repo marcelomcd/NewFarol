@@ -419,3 +419,15 @@ export function extractPmoName(assignedTo) {
 
   return null;
 }
+
+/**
+ * Extrai Responsável Cliente de Custom.ResponsavelCliente
+ */
+export function extractResponsavelCliente(value) {
+  if (!value) return null;
+  if (typeof value === "object" && value !== null) {
+    return value.displayName || value.name || value.uniqueName || null;
+  }
+  if (typeof value === "string" && value.trim()) return value.trim();
+  return null;
+}

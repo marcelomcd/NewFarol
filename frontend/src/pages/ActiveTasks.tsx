@@ -1,9 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { workItemsApi, Task } from '../services/api'
+import { featuresCountApi, Task } from '../services/api'
 import Tooltip from '../components/Tooltip/Tooltip'
-
-const ACTIVE_STATES = ['New', 'Active']
 
 export default function ActiveTasks() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -15,14 +13,14 @@ export default function ActiveTasks() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['tasks', 'active'],
-    queryFn: () => workItemsApi.getTasks({}),
+    queryFn: () => featuresCountApi.getTasksOpenWiql(),
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   })
 
   const activeTasks = useMemo(() => {
-    if (!data?.tasks) return []
-    return data.tasks.filter((t) => ACTIVE_STATES.includes(t.state || ''))
+    if (!data?.items) return []
+    return data.items
   }, [data])
 
   const filteredTasks = useMemo(() => {

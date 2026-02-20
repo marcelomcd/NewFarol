@@ -339,6 +339,16 @@ export const featuresCountApi = {
     const response = await api.get('/features/by-farol/wiql')
     return response.data
   },
+  /** Tasks abertas (New, Active) - mesmo padrão de Features: client, assigned_to do Parent */
+  getTasksOpenWiql: async (): Promise<{ items: Task[]; count: number; source: string }> => {
+    const response = await api.get('/features/tasks/open/wiql')
+    return response.data
+  },
+  /** Tasks fechadas (Closed) - mesmo padrão de Features */
+  getTasksClosedWiql: async (): Promise<{ items: Task[]; count: number; source: string }> => {
+    const response = await api.get('/features/tasks/closed/wiql')
+    return response.data
+  },
 }
 
 export const azdoApi = {
