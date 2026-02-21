@@ -107,19 +107,19 @@ export default function DrillDownModal({
                     </Tooltip>
                     <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400 flex-wrap">
                       {item.client && (
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1" title="Cliente">
                           <span>🏢</span>
                           <span>{item.client}</span>
                         </span>
                       )}
                       {((item as any).assigned_to || item.pmo) && (
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1" title="PMO">
                           <span>👤</span>
                           <span>{(item as any).assigned_to || item.pmo}</span>
                         </span>
                       )}
                       {(item as any).responsible && (
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1" title="Responsável Cliente">
                           <span>📋</span>
                           <span>{(item as any).responsible}</span>
                         </span>
