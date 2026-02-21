@@ -48,7 +48,7 @@ export default function ChartGalleryOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-500/50 dark:bg-black/80 backdrop-blur-sm animate-fadeIn"
       onClick={onClose}
     >
       {/* Conteúdo centralizado no eixo Y */}
@@ -64,7 +64,7 @@ export default function ChartGalleryOverlay({
               if (canGoPrev) onNavigate(currentIndex - 1)
             }}
             disabled={!canGoPrev}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full glass dark:glass-dark hover:scale-110 transition-transform disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/90 dark:glass-dark hover:scale-110 transition-transform disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg border border-gray-200/80 dark:border-white/10"
             title="Gráfico anterior"
             aria-label="Gráfico anterior"
           >
@@ -74,9 +74,9 @@ export default function ChartGalleryOverlay({
           </button>
         )}
 
-        {/* Card do gráfico - centralizado */}
+        {/* Card do gráfico - centralizado (tema light: fundo branco; tema dark: glass escuro) */}
         <div className="flex-1 flex flex-col items-center justify-center max-h-[95vh] overflow-auto">
-          <div className="glass dark:glass-dark p-6 rounded-2xl shadow-2xl w-full max-w-5xl my-auto">
+          <div className="bg-white/98 dark:glass-dark p-6 rounded-2xl shadow-2xl w-full max-w-5xl my-auto border border-gray-200/80 dark:border-white/10">
             <div className="flex items-center justify-between gap-4 mb-4">
               <h2 className="text-xl font-bold text-gray-800 dark:text-white font-heading">
                 {current.title}
@@ -87,7 +87,7 @@ export default function ChartGalleryOverlay({
                 </span>
                 <button
                   onClick={onClose}
-                  className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  className="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   title="Fechar"
                   aria-label="Fechar"
                 >
@@ -111,7 +111,7 @@ export default function ChartGalleryOverlay({
               if (canGoNext) onNavigate(currentIndex + 1)
             }}
             disabled={!canGoNext}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full glass dark:glass-dark hover:scale-110 transition-transform disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/90 dark:glass-dark hover:scale-110 transition-transform disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg border border-gray-200/80 dark:border-white/10"
             title="Próximo gráfico"
             aria-label="Próximo gráfico"
           >
@@ -123,7 +123,7 @@ export default function ChartGalleryOverlay({
 
         {/* Indicadores de teclado */}
         {hasMultiple && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-500 dark:text-gray-400">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-600 dark:text-gray-400">
             Use ← → para navegar • Esc para fechar
           </div>
         )}
