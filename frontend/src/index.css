@@ -26,6 +26,17 @@ body {
   position: relative;
 }
 
+/* Container para portais (DetailOverlay, etc.) - acima de modais e navbar */
+#portal-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 99999;
+}
+#portal-root > * {
+  pointer-events: auto;
+}
+
 body::before {
   content: '';
   position: fixed;

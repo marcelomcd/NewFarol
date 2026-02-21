@@ -178,6 +178,7 @@ export default function Navbar() {
                   placeholder="Buscar projetos, PMO..."
                   className="w-36 lg:w-44 pl-9 pr-8 py-1.5 text-sm rounded-lg border-0 bg-transparent text-slate-800 placeholder-slate-500 dark:text-white dark:placeholder-slate-400 focus:ring-1 focus:ring-white/30"
                   aria-label="Buscar"
+                  autoComplete="off"
                 />
                 {searchQuery && (
                   <button

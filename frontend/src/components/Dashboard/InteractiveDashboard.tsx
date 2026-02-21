@@ -1838,23 +1838,26 @@ export default function InteractiveDashboard() {
       {/* Botão voltar ao topo */}
       <ScrollToTop />
 
-      {/* Modal de Drill-Down */}
-      <DrillDownModal
-        isOpen={drillDownModal.isOpen}
-        onClose={() => {
-          setDrillDownModal((prev) => ({ ...prev, isOpen: false }))
-          setDrillDownSelectedItem(null)
-        }}
-        title={drillDownModal.title}
-        items={drillDownModal.items}
-        filterLabel={drillDownModal.filterLabel}
-        selectedItem={drillDownSelectedItem}
-        onItemSelect={setDrillDownSelectedItem}
-        onCloseOverlay={() => setDrillDownSelectedItem(null)}
-      />
+      {/* Modal de Drill-Down - oculto quando overlay de detalhes está aberto para evitar conflito de stacking */}
+      {!drillDownSelectedItem && (
+        <DrillDownModal
+          isOpen={drillDownModal.isOpen}
+          onClose={() => {
+            setDrillDownModal((prev) => ({ ...prev, isOpen: false }))
+            setDrillDownSelectedItem(null)
+          }}
+          title={drillDownModal.title}
+          items={drillDownModal.items}
+          filterLabel={drillDownModal.filterLabel}
+          selectedItem={drillDownSelectedItem}
+          onItemSelect={setDrillDownSelectedItem}
+          onCloseOverlay={() => setDrillDownSelectedItem(null)}
+        />
+      )}
 
-      {/* Overlay de detalhes (portal em document.body para garantir visibilidade) */}
+      {/* Overlay de detalhes (portal em #portal-root para garantir visibilidade acima de tudo) */}
       {drillDownSelectedItem &&
+        typeof document !== 'undefined' &&
         createPortal(
           <DetailOverlay
             type={drillDownSelectedItem.type}
@@ -1862,7 +1865,7 @@ export default function InteractiveDashboard() {
             farolStatus={drillDownSelectedItem.farolStatus ?? null}
             onClose={() => setDrillDownSelectedItem(null)}
           />,
-          document.body
+          document.getElementById('portal-root') || document.body
         )}
 
       {/* Modal de Clientes */}

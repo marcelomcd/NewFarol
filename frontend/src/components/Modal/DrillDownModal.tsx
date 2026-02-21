@@ -75,10 +75,11 @@ export default function DrillDownModal({
           <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-3">
               {items.map((item) => {
-                const workItemType = item.raw_fields_json?.['work_item_type'] ?? item.work_item_type ?? item.raw_fields_json?.['System.WorkItemType']
+                const workItemTypeRaw = item.raw_fields_json?.['work_item_type'] ?? item.work_item_type ?? item.raw_fields_json?.['System.WorkItemType']
+                const workItemType = typeof workItemTypeRaw === 'string' ? workItemTypeRaw : ''
                 const webUrl = (item as any).web_url || item.raw_fields_json?.['web_url']
-                const isTask = workItemType === 'Task'
-                const isBug = workItemType === 'Bug'
+                const isTask = workItemType.toLowerCase() === 'task'
+                const isBug = workItemType.toLowerCase() === 'bug'
 
                 const handleClick = () => {
                   if (isTask) {
