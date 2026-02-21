@@ -130,18 +130,19 @@ export default function Navbar() {
               </div>
               <div className="flex flex-col">
                 <span className="text-base lg:text-lg font-bold tracking-tight font-heading">Farol Operacional</span>
-                <span className="text-xs opacity-80">by Quali IT</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs opacity-80">by Quali IT</span>
+                  {updatedText && (
+                    <span className="hidden lg:inline text-[10px] px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-600 dark:bg-white/10 dark:text-white/90">
+                      {updatedText}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </Link>
 
-          {updatedText && (
-            <div className="hidden lg:block text-xs px-3 py-1 rounded-full bg-slate-200/80 text-slate-600 dark:bg-white/10 dark:text-white/90">
-              Atualizado {updatedText}
-            </div>
-          )}
-
-          <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-1">
+          <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-0.5">
             {navLinks.map((link) => {
               const isActive = location.pathname === link.path
               const Icon = link.icon
@@ -155,7 +156,7 @@ export default function Navbar() {
                   aria-current={isActive ? 'page' : undefined}
                 >
                   <Icon />
-                  <span className="text-[10px] lg:text-xs leading-tight max-w-[72px] truncate text-center">{link.label}</span>
+                  <span className="text-[10px] lg:text-xs leading-tight text-center whitespace-nowrap">{link.label}</span>
                   {isActive && (
                     <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-current opacity-80" />
                   )}
@@ -165,19 +166,36 @@ export default function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-2 shrink-0 z-10">
-            <form onSubmit={handleSearch} className="flex items-center">
+            <form onSubmit={handleSearch} className="flex items-center gap-1">
                 <div className="relative flex items-center rounded-lg overflow-hidden bg-slate-100 dark:bg-white/10">
                 <span className="absolute left-2.5 text-slate-500 dark:text-slate-400 pointer-events-none">
                   <IconSearch />
                 </span>
                 <input
                   type="search"
-                  value={searchInput}
+                  value={searchInput || searchQuery}
                   onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Buscar projetos, PMO..."
-                  className="w-36 lg:w-44 pl-9 pr-3 py-1.5 text-sm rounded-lg border-0 bg-transparent text-slate-800 placeholder-slate-500 dark:text-white dark:placeholder-slate-400 focus:ring-1 focus:ring-white/30"
+                  className="w-36 lg:w-44 pl-9 pr-8 py-1.5 text-sm rounded-lg border-0 bg-transparent text-slate-800 placeholder-slate-500 dark:text-white dark:placeholder-slate-400 focus:ring-1 focus:ring-white/30"
                   aria-label="Buscar"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('')
+                      setSearchInput('')
+                      if (location.pathname === '/') navigate('/', { replace: true })
+                    }}
+                    className="absolute right-2 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-500"
+                    title="Limpar busca"
+                    aria-label="Limpar busca"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </form>
 

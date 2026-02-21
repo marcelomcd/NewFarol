@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { azdoApi, featuresApi, featuresCountApi, workItemsApi, Feature } from '../../services/api'
 import {
@@ -116,6 +117,7 @@ export default function InteractiveDashboard() {
   const [responsaveisListExpanded, setResponsaveisListExpanded] = useState(false)
   const [fullscreenChartIndex, setFullscreenChartIndex] = useState<number | null>(null)
   const { showToast } = useToast()
+  const navigate = useNavigate()
   const { setDataUpdatedAt, searchQuery, setSearchQuery } = useDashboardData()
 
   // Sincronizar searchQuery com URL ao montar
@@ -1017,6 +1019,23 @@ export default function InteractiveDashboard() {
         consolidatedError={consolidatedError}
         consolidatedLoading={consolidatedLoading}
       />
+
+      {searchQuery.trim() && filteredItems.length === 0 && !consolidatedLoading && (
+        <div className="glass dark:glass-dark p-4 rounded-lg flex items-center justify-between gap-4 animate-fadeIn">
+          <p className="text-gray-700 dark:text-gray-300">
+            Nenhum resultado encontrado para &quot;{searchQuery}&quot;
+          </p>
+          <button
+            onClick={() => {
+              setSearchQuery('')
+              navigate('/', { replace: true })
+            }}
+            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+          >
+            Limpar busca
+          </button>
+        </div>
+      )}
 
       {/* Layout: Semáforo à esquerda, Filtros e Cards à direita */}
       <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 lg:items-stretch animate-fadeIn stagger-1">
