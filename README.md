@@ -40,6 +40,7 @@
 - [Testes](#testes)
 - [Solução de Problemas](#solucao-de-problemas)
 - [Deploy](#deploy)
+- [O que funciona](#o-que-funciona-checklist)
 - [Documentação](#documentacao)
 - [Histórico de versões](#historico-de-versoes)
 - [Contribuindo](#contribuindo)
@@ -70,12 +71,55 @@ O **NewFarol** é uma plataforma completa e moderna para visualização e gestã
 ### 📊 Dashboard Interativo
 
 - **Métricas em Tempo Real**: Visualização instantânea de projetos, status e faróis
-- **Gráficos Dinâmicos**: Análise visual de dados com Recharts
-  - **Projetos por PMO**: Barras horizontais com top 10 PMOs (lista "exceto top 10" removida — prevê-se que não ultrapasse 10 PMOs)
-  - **Projetos por Responsável**: Barras verticais com top 10 + lista encolhível "Todos os responsáveis (exceto top 10)" (expansível ao clicar). Contagem e modal consideram apenas projetos em aberto (consistência entre número exibido e itens no drill-down)
-- **Filtros Avançados**: Por cliente, PMO, estado, farol e período
-- **Filtros Avançados**: Responsável, Cliente, Estado, PMO (com Limpar Filtros compacto ao lado)
+- **KPIs com Count-up**: Animação de entrada nos números (600ms) para feedback visual
+- **Labels dos KPIs**: "Projetos Abertos em Dia", "Task's Abertas em Dia" e demais categorias
+- **Indicador de Atualização**: Timestamp "Atualizado há X minutos" no cabeçalho
+- **Gráficos Dinâmicos**: Análise visual com Recharts
+  - **Projetos por PMO**: Barras horizontais (top 10)
+  - **Projetos por Responsável**: Barras verticais (top 10) + lista encolhível expansível
+  - **Performance por PMO**: Stacked (Concluídos, Em dia, Atrasados)
+  - **Evolução de Entregas** e **Evolução de Tasks Fechadas** (3/6/9/12 meses)
+  - **Saúde do Farol** (pizza)
+  - **Distribuição por Status** (pizza)
+  - **Features Fechadas por Dia** (linha)
+  - **Formatação de Eixo**: Valores grandes como 1.5k, 2.3k
+- **Filtros Avançados**: Responsável, Cliente, Estado, PMO, Farol e período
+- **Persistência de Filtros**: Salvos em `sessionStorage` (mantidos ao recarregar)
+- **Busca na Navbar**: Busca por projetos, PMO e termos (sincronizada com URL `?q=`)
 - **Modo Escuro/Claro**: Interface adaptável com glassmorphism
+
+### 📈 Galeria de Gráficos em Tela Cheia
+
+- **8 Gráficos Navegáveis**: Performance PMO, Evolução Entregas, Saúde Farol, Evolução Tasks, Distribuição Status, Fechadas por Dia, Projetos por PMO, Projetos por Responsável
+- **Navegação por Setas**: Botões laterais e teclado (← → para navegar, Esc para fechar)
+- **Indicador de Posição**: Exibição "1 / 8" e dica de atalhos
+- **Export PNG**: Exportação de cada gráfico em alta resolução (suporta dark mode)
+
+### 🚦 Farol (Semáforo)
+
+- **Visual Atualizado**: Círculos de 100px com efeito de glow no hover
+- **Clique para Drill-down**: Abre modal com lista de features do status selecionado
+- **Indicador Indefinido**: Botão separado para itens sem status de farol
+
+### 📋 Janelas Modais
+
+- **Glassmorphism**: Modais com efeito vidro fosco (claro e escuro)
+- **Tonalidade pelo Farol**: Modal de detalhes com cor conforme status (verde = Sem Problema, amarelo = Com Problema, vermelho = Problema Crítico)
+- **Rolagem**: Conteúdo scrollável em todas as modais (DrillDown, Clientes, PMOs, Detalhes)
+- **Drill-down de Itens**: Clique em KPI ou gráfico para ver lista; clique em item para abrir detalhes full-screen
+- **Datas nos Itens**: Data de Atualização e Data Prevista para Conclusão com ícones e tooltips
+- **Fechar com Esc**: Todas as modais fecham com tecla Escape
+
+### 🎯 Recursos de UX
+
+- **Skeleton com Shimmer**: Loading animado enquanto dados carregam
+- **Entrada em Sequência (Stagger)**: KPIs e cards entram em sequência ao carregar
+- **Botão Voltar ao Topo**: Visível após ~400px de scroll
+- **Toast de Feedback**: Notificação ao limpar filtros
+- **Transição de Páginas**: Animação suave entre Dashboard e Relatórios
+- **Microinterações**: Feedback visual em botões (active, focus-visible)
+- **Tipografia**: Plus Jakarta Sans para títulos
+- **Destaque de Status Crítico**: "Projeto em Fase Crítica" destacado nos cards
 
 ### 🔍 Gestão de Features
 
@@ -104,6 +148,24 @@ O **NewFarol** é uma plataforma completa e moderna para visualização e gestã
 - **Painel Service UP**: Gestão de chamados (sistema independente)
 - **Integração via iframe**: Total independência entre sistemas
 - **Isolamento Total**: Alterações em um sistema não afetam o outro
+
+<a id="o-que-funciona-checklist"></a>
+### ✅ O que funciona (checklist)
+
+| Funcionalidade | Status |
+|----------------|--------|
+| Login OAuth Microsoft Entra ID | ✅ |
+| Dashboard com KPIs e gráficos | ✅ |
+| Galeria fullscreen (8 gráficos) | ✅ |
+| Drill-down em KPIs e gráficos | ✅ |
+| Modal de detalhes full-screen | ✅ |
+| Filtros e persistência em sessionStorage | ✅ |
+| Busca na navbar e na URL | ✅ |
+| Tema claro/escuro | ✅ |
+| Export Excel | ✅ |
+| Export PNG dos gráficos | ✅ |
+| Relatórios personalizados | ✅ |
+| Painel Service UP (iframe) | ✅ |
 
 ---
 
@@ -550,13 +612,11 @@ Resumo: **app single-tenant (só Quali IT) + convidados B2B** = sistema é seu, 
 
 #### 📊 Dashboard
 
-- **Cards de Métricas**: Total de projetos, em aberto, atrasados, próximos do prazo
-- **Gráficos Interativos**: 
-  - Distribuição por Status (Pizza)
-  - Projetos por PMO (Barras horizontais, top 10 — sem lista "exceto top 10")
-  - Projetos por Responsável (Barras verticais, top 10 + lista encolhível/expansível com todos os demais; contagem e modal exibem apenas projetos em aberto)
-  - Features Fechadas por Dia (Linha)
-- **Filtros Avançados**: Por cliente, PMO, estado, farol
+- **Cards de Métricas**: Total de projetos, em aberto, em dia, atrasados, próximos do prazo (com animação count-up)
+- **Gráficos Interativos**: Performance por PMO, Evolução de Entregas, Saúde do Farol, Evolução de Tasks, Distribuição por Status, Features Fechadas por Dia, Projetos por PMO, Projetos por Responsável
+- **Galeria Fullscreen**: Botão em cada gráfico para abrir em tela cheia; navegação entre os 8 gráficos com setas ou teclado; exportação PNG
+- **Filtros Avançados**: Responsável, Cliente, Estado, PMO, Farol (persistem em `sessionStorage`)
+- **Drill-down**: Clique nos KPIs ou nas barras/legendas dos gráficos para ver lista de itens; clique em item para detalhes full-screen
 - **Exportação**: Botão para exportar dados para Excel
 
 #### 📋 Features
@@ -616,6 +676,7 @@ NewFarol/
 │   └── .env                             # Variáveis de ambiente
 │
 ├── 📂 frontend/                         # Frontend React (New Farol)
+│   ├── index.html                       # Inclui #portal-root para modais fullscreen
 │   ├── 📂 src/
 │   │   ├── 📂 components/               # Componentes React
 │   │   │   ├── 📂 Dashboard/           # Componentes do Dashboard
@@ -683,13 +744,18 @@ O `InteractiveDashboard` foi refatorado para facilitar manutenção:
 
 | Arquivo | Responsabilidade |
 |---------|------------------|
-| `frontend/src/components/Dashboard/InteractiveDashboard.tsx` | Componente principal, orquestra UI e gráficos |
-| `frontend/src/components/Dashboard/hooks/useInteractiveDashboard.ts` | Hook com lógica de dados, filtros e métricas (para uso futuro/migração gradual) |
-| `frontend/src/components/Dashboard/sections/DashboardHeader.tsx` | Cabeçalho e alerta de erro |
-| `frontend/src/components/Dashboard/sections/DashboardFiltersSection.tsx` | Filtros (Responsável, Cliente, Estado, PMO, Limpar Filtros) |
-| `frontend/src/utils/featureExtractors.ts` | `extractPMO`, `extractResponsavelCliente`, `getTargetDate`, `normalizeClientKey` |
+| `InteractiveDashboard.tsx` | Componente principal, orquestra UI, gráficos, galeria fullscreen e modais |
+| `hooks/useDashboardMetrics.ts` | Lógica de métricas, KPIs e contagens |
+| `hooks/useDashboardFiltersPersistence.ts` | Persistência dos filtros em `sessionStorage` |
+| `sections/DashboardHeader.tsx` | Cabeçalho, timestamp "Atualizado há X min", alerta de erro |
+| `sections/DashboardFiltersSection.tsx` | Filtros (Responsável, Cliente, Estado, PMO, Farol, Limpar Filtros) |
+| `ChartWithActions.tsx` | Wrapper de gráficos com botão fullscreen e export PNG |
+| `ChartGalleryOverlay.tsx` | Galeria fullscreen com 8 gráficos, navegação por setas e teclado |
+| `components/Modal/DetailOverlay.tsx` | Overlay fullscreen de detalhes do item (glassmorphism, tonalidade por farol) |
+| `components/Modal/DrillDownModal.tsx` | Modal de drill-down com lista de itens e datas |
+| `utils/featureExtractors.ts` | `extractPMO`, `extractResponsavelCliente`, `getTargetDate`, `normalizeClientKey` |
 
-**Constantes** centralizadas em `frontend/src/constants/dashboard.ts`.
+**Constantes** centralizadas em `frontend/src/constants/dashboard.ts`. **Portal** para modais em `#portal-root` (index.html).
 
 ---
 
@@ -1866,6 +1932,7 @@ A numeração **2.x** refere-se ao **New Farol** (este repositório). O projeto 
 
 | Versão | Data | Alterações |
 |--------|------|------------|
+| 2.5.0 | 20/02/2026 | UX e Interface: Galeria fullscreen com 8 gráficos (navegação setas/teclado, export PNG). KPIs com count-up e labels. Skeleton shimmer no carregamento. Toast de feedback. Botão voltar ao topo. Persistência de filtros em sessionStorage. Glassmorphism no DetailOverlay e tonalidade pelo farol. Modal de drill-down com datas e scroll. Navbar com cores por tema (slate). Farol com círculos maiores e glow. Esc fecha modais. Plus Jakarta Sans. Microinterações. Portal (#portal-root) para overlay de detalhes. |
 | 2.4.0 | 19/02/2026 | Dashboard: remoção da lista "Todos os PMOs (exceto top 10)" do gráfico Projetos por PMO. Projetos por Responsável: lista "Todos os responsáveis (exceto top 10)" encolhível/expansível (inicia encolhida para evitar sobreposição com rótulos), espaçamento (mt-8) para não cobrir nomes do gráfico. Correção: contagem por responsável e modal de drill-down passam a considerar apenas projetos em aberto (`activeItems`), alinhando número exibido com itens mostrados. |
 | 2.3.0 | 09-10/02/2026 | Redirect de login por origem (return_origin). OAuth2 completo com Microsoft Entra ID (troca código por token, id_token, JWT). is_admin por domínio (@qualiit.com.br). Acesso B2B: convidados no tenant Quali IT, atribuição só ao app Farol, doc. one-time passcode. Correções: navbar duplicada no Painel Service Up (oculta em iframe), logo Quali IT (public/logo-qualiit.svg). Doc: permissões Entra ID, app Web (não cliente público), tokens implícitos, passo a passo B2B. Histórico de versões em tabela. |
 | 2.2.0 | 12/01/2026 | Sincronização Painel Service UP com repositório (Davi Silva). Atualização de scripts e configuração de portas. Update submodule Painel Service UP. |
@@ -1887,8 +1954,8 @@ Para suporte, dúvidas ou problemas:
 
 <div align="center">
 
-**Última atualização**: 19/02/2026  
-**Versão**: 2.4.0
+**Última atualização**: 20/02/2026  
+**Versão**: 2.5.0
 **Backend**: Node.js/Express  
 **Frontend**: React/TypeScript  
 **Desenvolvido por**: Marcelo Macedo  
