@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { azdoApi, featuresApi, featuresCountApi, workItemsApi, Feature } from '../../services/api'
 import {
@@ -41,6 +41,7 @@ import ScrollToTop from '../ScrollToTop/ScrollToTop'
 import KpiCounter from '../KpiCounter/KpiCounter'
 import { useDashboardFiltersPersistence } from '../../hooks/useDashboardFiltersPersistence'
 import { useToast } from '../Toast/Toast'
+import { useFarolNavbar } from '../../contexts/FarolNavbarContext'
 
 // Cores para gráficos
 const COLORS = {
@@ -115,6 +116,20 @@ export default function InteractiveDashboard() {
   const [responsaveisListExpanded, setResponsaveisListExpanded] = useState(false)
   const [fullscreenChartIndex, setFullscreenChartIndex] = useState<number | null>(null)
   const { showToast } = useToast()
+  const { setFarolStatus } = useFarolNavbar()
+
+  // Atualiza farol da navbar quando no dashboard (pior status prevalece)
+  useEffect(() => {
+    const s = farolSummary as Record<FarolStatus, { count: number }> | undefined
+    if (!s) {
+      setFarolStatus(null)
+      return
+    }
+    if ((s['Problema Crítico']?.count ?? 0) > 0) setFarolStatus('Problema Crítico')
+    else if ((s['Com Problema']?.count ?? 0) > 0) setFarolStatus('Com Problema')
+    else if ((s['Sem Problema']?.count ?? 0) > 0) setFarolStatus('Sem Problema')
+    else setFarolStatus(null)
+  }, [farolSummary, setFarolStatus])
 
   // Persistir filtros em sessionStorage
   useDashboardFiltersPersistence(
@@ -887,8 +902,86 @@ export default function InteractiveDashboard() {
           </ResponsiveContainer>
         ),
       },
+      {
+        id: 'dist-status',
+        title: 'Distribuição por Status (ativos)',
+        content: (
+          <ResponsiveContainer width="100%" height={350}>
+            <PieChart>
+              <Pie
+                data={statusPieData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }: { name: string; percent?: number }) => `${name}\n${percent != null ? (percent * 100).toFixed(1) : 0}%`}
+                outerRadius={100}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {statusPieData.map((entry: { name: string }, index: number) => (
+                  <Cell key={`cell-${index}`} fill={STATUS_PIE_COLORS[entry.name] || COLORS.primary} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+        ),
+      },
+      {
+        id: 'fechadas-dia',
+        title: 'Features Fechadas por Dia',
+        content: (
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={closedByDay}>
+              <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} interval={0} />
+              <YAxis tickFormatter={formatAxisValue} />
+              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#94a3b8', strokeWidth: 1 }} />
+              <Line type="monotone" dataKey="closed" stroke={COLORS.primary} strokeWidth={2} dot={{ r: 6 }} activeDot={{ r: 10, strokeWidth: 2, stroke: '#fff' }} />
+            </LineChart>
+          </ResponsiveContainer>
+        ),
+      },
+      {
+        id: 'projetos-pmo',
+        title: 'Projetos por PMO',
+        content: (
+          <ResponsiveContainer width="100%" height={Math.min(400, Math.max(300, pmoCounts.slice(0, 10).length * 30))}>
+            <BarChart data={pmoCounts.slice(0, 10)} layout="vertical">
+              <XAxis type="number" tickFormatter={formatAxisValue} />
+              <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="value" fill={COLORS.purple} />
+            </BarChart>
+          </ResponsiveContainer>
+        ),
+      },
+      {
+        id: 'projetos-responsavel',
+        title: 'Projetos por Responsável',
+        content: (
+          <ResponsiveContainer width="100%" height={350}>
+            <BarChart data={responsibleCounts.slice(0, 10)}>
+              <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} tick={{ fontSize: 12 }} />
+              <YAxis tickFormatter={formatAxisValue} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="value" fill={COLORS.success} />
+            </BarChart>
+          </ResponsiveContainer>
+        ),
+      },
     ],
-    [pmoPerformanceData, closedByMonth, evolucaoEntregasMeses, farolPieData, tasksClosedByMonth, evolucaoTasksMeses]
+    [
+      pmoPerformanceData,
+      closedByMonth,
+      evolucaoEntregasMeses,
+      farolPieData,
+      tasksClosedByMonth,
+      evolucaoTasksMeses,
+      statusPieData,
+      closedByDay,
+      pmoCounts,
+      responsibleCounts,
+    ]
   )
 
   if (featuresLoading && baseItems.length === 0) {
@@ -1526,8 +1619,7 @@ export default function InteractiveDashboard() {
 
       {/* Gráficos (limpos) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="glass dark:glass-dark p-6 rounded-lg">
-          <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Distribuição por Status (ativos)</h2>
+        <ChartWithActions title="Distribuição por Status (ativos)" onFullscreenClick={() => setFullscreenChartIndex(4)}>
           <ResponsiveContainer width="100%" height={350}>
             <PieChart>
               <Pie
@@ -1554,14 +1646,10 @@ export default function InteractiveDashboard() {
               <Tooltip content={<CustomTooltip />} />
             </PieChart>
           </ResponsiveContainer>
-        </div>
+        </ChartWithActions>
 
-        <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
+        <ChartWithActions title="Features Fechadas por Dia" onFullscreenClick={() => setFullscreenChartIndex(5)}>
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-              <span>📈</span>
-              <span>Features Fechadas por Dia</span>
-            </h2>
             <div className="flex items-center gap-2">
               <label className="text-sm text-gray-600 dark:text-gray-400">De</label>
               <input
@@ -1597,16 +1685,12 @@ export default function InteractiveDashboard() {
               />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        </ChartWithActions>
       </div>
 
       {/* Gráficos: Features por PMO / Responsável (como no Backup) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
-          <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2">
-            <span>👥</span>
-            <span>Projetos por PMO</span>
-          </h2>
+        <ChartWithActions title="Projetos por PMO" onFullscreenClick={() => setFullscreenChartIndex(6)}>
           <ResponsiveContainer width="100%" height={Math.min(400, Math.max(300, pmoCounts.slice(0, 10).length * 30))}>
             <BarChart data={pmoCounts.slice(0, 10)} layout="vertical">
               <XAxis type="number" tickFormatter={formatAxisValue} />
@@ -1626,13 +1710,9 @@ export default function InteractiveDashboard() {
               />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </ChartWithActions>
 
-        <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
-          <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2">
-            <span>👤</span>
-            <span>Projetos por Responsável</span>
-          </h2>
+        <ChartWithActions title="Projetos por Responsável" onFullscreenClick={() => setFullscreenChartIndex(7)}>
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={responsibleCounts.slice(0, 10)}>
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} tick={{ fontSize: 12 }} />
@@ -1690,7 +1770,7 @@ export default function InteractiveDashboard() {
               </div>
             )
           })()}
-        </div>
+        </ChartWithActions>
       </div>
 
       {/* Galeria fullscreen com navegação entre gráficos */}

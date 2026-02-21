@@ -29,9 +29,16 @@ export default function ChartGalleryOverlay({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return
-      if (e.key === 'Escape') onClose()
-      if (e.key === 'ArrowLeft') canGoPrev && onNavigate(currentIndex - 1)
-      if (e.key === 'ArrowRight') canGoNext && onNavigate(currentIndex + 1)
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      } else if (e.key === 'ArrowLeft' && canGoPrev) {
+        e.preventDefault()
+        onNavigate(currentIndex - 1)
+      } else if (e.key === 'ArrowRight' && canGoNext) {
+        e.preventDefault()
+        onNavigate(currentIndex + 1)
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
