@@ -47,7 +47,7 @@ export default function PMOsModal({ isOpen, onClose, pmos, onPMOClick }: PMOsMod
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6">
           <div className="space-y-2">
             {pmos.map((pmo) => (
               <div

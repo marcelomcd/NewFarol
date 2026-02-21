@@ -71,8 +71,8 @@ export default function DrillDownModal({
             </button>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          {/* Content - min-h-0 fixa rolagem em flexbox */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-6">
             <div className="space-y-3">
               {items.map((item) => {
                 const workItemTypeRaw = item.raw_fields_json?.['work_item_type'] ?? item.work_item_type ?? item.raw_fields_json?.['System.WorkItemType']
