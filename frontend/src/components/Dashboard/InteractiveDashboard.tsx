@@ -118,19 +118,6 @@ export default function InteractiveDashboard() {
   const { showToast } = useToast()
   const { setFarolStatus } = useFarolNavbar()
 
-  // Atualiza farol da navbar quando no dashboard (pior status prevalece)
-  useEffect(() => {
-    const s = farolSummary as Record<FarolStatus, { count: number }> | undefined
-    if (!s) {
-      setFarolStatus(null)
-      return
-    }
-    if ((s['Problema Crítico']?.count ?? 0) > 0) setFarolStatus('Problema Crítico')
-    else if ((s['Com Problema']?.count ?? 0) > 0) setFarolStatus('Com Problema')
-    else if ((s['Sem Problema']?.count ?? 0) > 0) setFarolStatus('Sem Problema')
-    else setFarolStatus(null)
-  }, [farolSummary, setFarolStatus])
-
   // Persistir filtros em sessionStorage
   useDashboardFiltersPersistence(
     {
@@ -354,6 +341,19 @@ export default function InteractiveDashboard() {
     const { Indefinido: _ignored, ...rest } = (farolSummary as any) || {}
     return rest
   }, [farolSummary])
+
+  // Atualiza farol da navbar quando no dashboard (pior status prevalece)
+  useEffect(() => {
+    const s = farolSummary as Record<FarolStatus, { count: number }> | undefined
+    if (!s) {
+      setFarolStatus(null)
+      return
+    }
+    if ((s['Problema Crítico']?.count ?? 0) > 0) setFarolStatus('Problema Crítico')
+    else if ((s['Com Problema']?.count ?? 0) > 0) setFarolStatus('Com Problema')
+    else if ((s['Sem Problema']?.count ?? 0) > 0) setFarolStatus('Sem Problema')
+    else setFarolStatus(null)
+  }, [farolSummary, setFarolStatus])
 
   // Cards por status (ordenado)
   // Preferir o consolidado (fonte canônica WIQL -> hidratação), e só cair para cálculo local quando filtrado.
