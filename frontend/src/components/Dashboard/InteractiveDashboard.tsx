@@ -125,12 +125,6 @@ export default function InteractiveDashboard() {
     if (q) setSearchQuery(q)
   }, [setSearchQuery])
 
-  // Atualizar timestamp para navbar
-  useEffect(() => {
-    if (consolidatedUpdatedAt) setDataUpdatedAt(consolidatedUpdatedAt)
-    return () => setDataUpdatedAt(null)
-  }, [consolidatedUpdatedAt, setDataUpdatedAt])
-
   // Persistir filtros em sessionStorage
   useDashboardFiltersPersistence(
     {
@@ -237,6 +231,12 @@ export default function InteractiveDashboard() {
     gcTime: 30_000, // Mantém no cache por 30s apenas (para navegação rápida)
     // placeholderData removido: não usar dados antigos na primeira carga
   })
+
+  // Atualizar timestamp para navbar (após declarar consolidatedUpdatedAt)
+  useEffect(() => {
+    if (consolidatedUpdatedAt) setDataUpdatedAt(consolidatedUpdatedAt)
+    return () => setDataUpdatedAt(null)
+  }, [consolidatedUpdatedAt, setDataUpdatedAt])
 
   const countsWiqlData = consolidatedAzdoData?.totals
     ? {
