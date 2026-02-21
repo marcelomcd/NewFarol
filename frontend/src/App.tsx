@@ -7,7 +7,6 @@ import InteractiveDashboard from './components/Dashboard/InteractiveDashboard'
 import Reports from './components/Reports/Reports'
 import Login from './pages/Login'
 import Navbar from './components/Navbar/Navbar'
-import { FarolNavbarProvider } from './contexts/FarolNavbarContext'
 import ActiveProjects from './pages/ActiveProjects'
 import CompletedProjects from './pages/CompletedProjects'
 import ActiveTasks from './pages/ActiveTasks'
@@ -171,7 +170,6 @@ function App() {
     : ''
 
   return (
-    <FarolNavbarProvider>
     <div className="min-h-screen bg-white dark:bg-slate-900 transition-colors duration-300">
       {showNavbar && <Navbar />}
       
@@ -272,7 +270,6 @@ function App() {
         </Routes>
       </main>
     </div>
-    </FarolNavbarProvider>
   )
 }
 

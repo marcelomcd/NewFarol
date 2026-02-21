@@ -1,93 +1,21 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { useFarolNavbar } from '../../contexts/FarolNavbarContext'
-import { useQuery } from '@tanstack/react-query'
-import { featuresApi } from '../../services/api'
-import { normalizeFarolStatus, FarolStatus } from '../../utils/farol'
 
-interface NavbarProps {
-  farolStatus?: FarolStatus | null
-}
+const FAROL_ORDER = ['Problema Crítico', 'Com Problema', 'Sem Problema'] as const
 
-const FAROL_ORDER: FarolStatus[] = ['Problema Crítico', 'Com Problema', 'Sem Problema']
-
-export default function Navbar({ farolStatus: propFarolStatus }: NavbarProps) {
+export default function Navbar() {
   const { user, logout, isAuthenticated } = useAuth()
-  const { farolStatus: dashboardFarol } = useFarolNavbar()
   const location = useLocation()
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-
-  const featureIdMatch = location.pathname.match(/^\/features\/(\d+)/)
-  const featureId = featureIdMatch ? featureIdMatch[1] : null
-  const isFeatureDetailsPage = location.pathname.startsWith('/features/') && !!featureId
-  const isDashboardPage = location.pathname === '/'
-
-  const { data: currentFeature } = useQuery({
-    queryKey: ['feature', featureId],
-    queryFn: () => featuresApi.get(Number(featureId)),
-    enabled: isFeatureDetailsPage && !propFarolStatus && !!featureId,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  })
-
-  const farolStatus = isFeatureDetailsPage
-    ? (propFarolStatus || (currentFeature?.farol_status ? normalizeFarolStatus(currentFeature.farol_status) : null))
-    : isDashboardPage
-      ? dashboardFarol
-      : null
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
-
-  const getNavbarStyle = (): React.CSSProperties => {
-    const applyFarol = (farolStatus && farolStatus !== 'Indefinido') && (isFeatureDetailsPage || isDashboardPage)
-    if (applyFarol) {
-      switch (farolStatus) {
-        case 'Sem Problema':
-          return {
-            background: 'linear-gradient(135deg, rgba(25, 135, 84, 0.9) 0%, rgba(25, 135, 84, 0.78) 100%)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            borderBottom: '2px solid rgba(255, 255, 255, 0.25)',
-            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3)',
-          }
-        case 'Com Problema':
-          return {
-            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.92) 0%, rgba(217, 119, 6, 0.85) 100%)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            borderBottom: '2px solid rgba(0, 0, 0, 0.15)',
-            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.25)',
-          }
-        case 'Problema Crítico':
-          return {
-            background: 'linear-gradient(135deg, rgba(220, 53, 69, 0.9) 0%, rgba(185, 28, 28, 0.82) 100%)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            borderBottom: '2px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3)',
-          }
-        default:
-          break
-      }
-    }
-
-    return {
-      background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.9) 0%, rgba(29, 78, 216, 0.78) 100%)',
-      backdropFilter: 'blur(20px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-      borderBottom: '2px solid rgba(255, 255, 255, 0.2)',
-      boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15), inset 0 1px 1px 0 rgba(255, 255, 255, 0.4)',
-    }
-  }
-
-  const textClass = farolStatus === 'Com Problema' ? 'text-gray-900' : 'text-white'
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
@@ -120,10 +48,14 @@ export default function Navbar({ farolStatus: propFarolStatus }: NavbarProps) {
 
   return (
     <nav
-      className={`${textClass} sticky top-0 z-50 transition-[height,box-shadow] duration-300 ${
+      className={`sticky top-0 z-50 text-white transition-[height,box-shadow] duration-300 ${
         scrolled ? 'shadow-2xl' : 'shadow-lg'
-      }`}
-      style={getNavbarStyle()}
+      } bg-slate-700/95 dark:bg-slate-800/95`}
+      style={{
+        backdropFilter: 'blur(12px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(12px) saturate(150%)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+      }}
     >
       <div
         className={`w-full max-w-[1920px] mx-auto px-4 lg:px-6 transition-[height] duration-300 ${
@@ -148,23 +80,14 @@ export default function Navbar({ farolStatus: propFarolStatus }: NavbarProps) {
                 className="flex flex-col gap-1.5 rounded-lg p-1.5 border border-white/25 bg-black/15"
                 aria-label="Status do Farol"
               >
-                {FAROL_ORDER.map((status) => {
-                  const isActive = farolStatus === status
-                  const colors = {
-                    'Problema Crítico': 'bg-red-500',
-                    'Com Problema': 'bg-amber-400',
-                    'Sem Problema': 'bg-emerald-500',
-                  }
-                  return (
-                    <div
-                      key={status}
-                      className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                        isActive ? `${colors[status]} shadow-lg ring-2 ring-white/60 scale-110` : 'bg-white/30'
-                      }`}
-                      title={isActive ? status : undefined}
-                    />
-                  )
-                })}
+                {FAROL_ORDER.map((status) => (
+                  <div
+                    key={status}
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      status === 'Problema Crítico' ? 'bg-red-500' : status === 'Com Problema' ? 'bg-amber-400' : 'bg-emerald-500'
+                    } opacity-70`}
+                  />
+                ))}
               </div>
               <div className="flex flex-col">
                 <span className="text-base lg:text-lg font-bold tracking-tight font-heading">Farol Operacional</span>

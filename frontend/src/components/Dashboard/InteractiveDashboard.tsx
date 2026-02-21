@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { azdoApi, featuresApi, featuresCountApi, workItemsApi, Feature } from '../../services/api'
 import {
@@ -41,7 +41,6 @@ import ScrollToTop from '../ScrollToTop/ScrollToTop'
 import KpiCounter from '../KpiCounter/KpiCounter'
 import { useDashboardFiltersPersistence } from '../../hooks/useDashboardFiltersPersistence'
 import { useToast } from '../Toast/Toast'
-import { useFarolNavbar } from '../../contexts/FarolNavbarContext'
 
 // Cores para gráficos
 const COLORS = {
@@ -116,7 +115,6 @@ export default function InteractiveDashboard() {
   const [responsaveisListExpanded, setResponsaveisListExpanded] = useState(false)
   const [fullscreenChartIndex, setFullscreenChartIndex] = useState<number | null>(null)
   const { showToast } = useToast()
-  const { setFarolStatus } = useFarolNavbar()
 
   // Persistir filtros em sessionStorage
   useDashboardFiltersPersistence(
@@ -341,19 +339,6 @@ export default function InteractiveDashboard() {
     const { Indefinido: _ignored, ...rest } = (farolSummary as any) || {}
     return rest
   }, [farolSummary])
-
-  // Atualiza farol da navbar quando no dashboard (pior status prevalece)
-  useEffect(() => {
-    const s = farolSummary as Record<FarolStatus, { count: number }> | undefined
-    if (!s) {
-      setFarolStatus(null)
-      return
-    }
-    if ((s['Problema Crítico']?.count ?? 0) > 0) setFarolStatus('Problema Crítico')
-    else if ((s['Com Problema']?.count ?? 0) > 0) setFarolStatus('Com Problema')
-    else if ((s['Sem Problema']?.count ?? 0) > 0) setFarolStatus('Sem Problema')
-    else setFarolStatus(null)
-  }, [farolSummary, setFarolStatus])
 
   // Cards por status (ordenado)
   // Preferir o consolidado (fonte canônica WIQL -> hidratação), e só cair para cálculo local quando filtrado.
