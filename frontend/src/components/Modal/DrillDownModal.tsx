@@ -44,7 +44,9 @@ export default function DrillDownModal({
     <>
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn"
-        onClick={onClose}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose()
+        }}
       >
       <div
         className="glass dark:glass-dark rounded-2xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col animate-scaleIn"
@@ -93,10 +95,15 @@ export default function DrillDownModal({
               }
               
               return (
-              <div
+              <button
+                type="button"
                 key={item.id}
-                onClick={handleClick}
-                className="glass dark:glass-dark p-4 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-all hover-lift border-l-4 border-blue-500"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleClick()
+                }}
+                className="glass dark:glass-dark p-4 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-all hover-lift border-l-4 border-blue-500 w-full text-left"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -165,7 +172,7 @@ export default function DrillDownModal({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
-              </div>
+              </button>
               )
             })}
           </div>
