@@ -15,9 +15,8 @@ import {
   Tooltip,
   Legend,
 } from 'recharts'
-import { format, subDays } from 'date-fns'
+import { format, subDays, parseISO, startOfDay, endOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { MONTHS_PT } from '../../constants/dashboard'
 import TrafficLight from '../Farol/TrafficLight'
 import FarolTooltip from '../Farol/FarolTooltip'
 import StatusCardsGrid from '../Status/StatusCardsGrid'
@@ -72,20 +71,18 @@ const STATUS_ORDER = [
   'Encerrado',
 ]
 
-const now = new Date()
-const currentMonth = now.getMonth() + 1
-const currentYear = now.getFullYear()
-const YEARS_RANGE = 5
-const yearOptions = Array.from({ length: YEARS_RANGE * 2 + 1 }, (_, i) => currentYear - YEARS_RANGE + i)
-
 export default function InteractiveDashboard() {
   const [selectedFarol, setSelectedFarol] = useState<FarolStatus | null>(null)
   const [selectedClient, setSelectedClient] = useState<string | null>(null)
   const [selectedState, setSelectedState] = useState<string | null>(null)
   const [selectedPMO, setSelectedPMO] = useState<string | null>(null)
   const [selectedResponsavel, setSelectedResponsavel] = useState<string | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth)
-  const [selectedYear, setSelectedYear] = useState<number>(currentYear)
+
+  const nowForRange = new Date()
+  const firstOfMonthRange = new Date(nowForRange.getFullYear(), nowForRange.getMonth(), 1)
+  const lastOfMonthRange = new Date(nowForRange.getFullYear(), nowForRange.getMonth() + 1, 0)
+  const [dateRangeDe, setDateRangeDe] = useState(format(firstOfMonthRange, 'yyyy-MM-dd'))
+  const [dateRangeAte, setDateRangeAte] = useState(format(lastOfMonthRange, 'yyyy-MM-dd'))
 
   const [drillDownModal, setDrillDownModal] = useState<{
     isOpen: boolean
@@ -103,8 +100,14 @@ export default function InteractiveDashboard() {
   const [pmosModal, setPMOsModal] = useState<{ isOpen: boolean }>({ isOpen: false })
   const [evolucaoEntregasMeses, setEvolucaoEntregasMeses] = useState(6)
   const [evolucaoTasksMeses, setEvolucaoTasksMeses] = useState(6)
-  const [closedByDayDias, setClosedByDayDias] = useState(30)
+  const [closedByDayDateDe, setClosedByDayDateDe] = useState(format(subDays(new Date(), 29), 'yyyy-MM-dd'))
+  const [closedByDayDateAte, setClosedByDayDateAte] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [responsaveisListExpanded, setResponsaveisListExpanded] = useState(false)
+
+  const derivedMonthYear = useMemo(() => {
+    const d = parseISO(dateRangeDe)
+    return { month: d.getMonth() + 1, year: d.getFullYear() }
+  }, [dateRangeDe])
 
   // Fonte “DB” (pode falhar — não pode derrubar o dashboard)
   const { data: featuresData, isLoading: featuresLoading } = useQuery({
@@ -115,8 +118,8 @@ export default function InteractiveDashboard() {
   })
 
   const { data: countsByMonthData } = useQuery({
-    queryKey: ['azdo', 'counts-by-month', selectedMonth, selectedYear, true],
-    queryFn: () => azdoApi.getCountsByMonth(selectedMonth, selectedYear, true),
+    queryKey: ['azdo', 'counts-by-month', derivedMonthYear.month, derivedMonthYear.year, true],
+    queryFn: () => azdoApi.getCountsByMonth(derivedMonthYear.month, derivedMonthYear.year, true),
     staleTime: 60_000,
   })
 
@@ -522,14 +525,14 @@ export default function InteractiveDashboard() {
       .sort((a, b) => b.value - a.value)
   }, [activeItems])
 
-  // Contagens e itens por mês (projetos abertos/fechados no mês selecionado)
+  // Contagens e itens por período (projetos abertos/fechados no período selecionado)
   const monthlyProjectData = useMemo(() => {
-    const start = new Date(selectedYear, selectedMonth - 1, 1)
-    const end = new Date(selectedYear, selectedMonth, 0, 23, 59, 59)
+    const start = startOfDay(parseISO(dateRangeDe))
+    const end = endOfDay(parseISO(dateRangeAte))
     const startMs = start.getTime()
     const endMs = end.getTime()
 
-    const isInMonth = (dateStr: string | undefined) => {
+    const isInPeriod = (dateStr: string | undefined) => {
       if (!dateStr) return false
       const d = new Date(dateStr)
       if (Number.isNaN(d.getTime())) return false
@@ -541,9 +544,9 @@ export default function InteractiveDashboard() {
     const projectsClosedItems: Feature[] = []
 
     for (const item of filteredItems) {
-      if (isInMonth(item.created_date)) projectsOpenedItems.push(item)
+      if (isInPeriod(item.created_date)) projectsOpenedItems.push(item)
       const state = normalizarStatus(item.state || '')
-      if ((state === 'Encerrado' || state === 'Closed') && isInMonth(item.changed_date)) {
+      if ((state === 'Encerrado' || state === 'Closed') && isInPeriod(item.changed_date)) {
         projectsClosedItems.push(item)
       }
     }
@@ -553,7 +556,7 @@ export default function InteractiveDashboard() {
       projectsOpenedItems,
       projectsClosedItems,
     }
-  }, [filteredItems, selectedMonth, selectedYear])
+  }, [filteredItems, dateRangeDe, dateRangeAte])
 
   // KPIs de Performance
   const performanceKpis = useMemo(() => {
@@ -722,20 +725,20 @@ export default function InteractiveDashboard() {
     })
   }, [lastNMonthsForTasks, tasksByMonthQueries])
 
-  // Fechadas por dia (últimos N dias): prefere WIQL closed; fallback DB.
+  // Fechadas por dia (período selecionado): prefere WIQL closed; fallback DB.
   const closedByDay = useMemo(() => {
     const closedItems = (closedFeaturesWiqlData?.items || featuresData?.items || []).filter((item: any) => {
       const state = normalizarStatus(item.state || '')
       return state === 'Encerrado' || item.state === 'Closed'
     })
-    const cutoff = subDays(new Date(), closedByDayDias - 1)
-    cutoff.setHours(0, 0, 0, 0)
+    const start = startOfDay(parseISO(closedByDayDateDe))
+    const end = endOfDay(parseISO(closedByDayDateAte))
 
     const byDay = closedItems.reduce((acc: Record<string, number>, item: any) => {
       if (!item.changed_date) return acc
       const changed = new Date(item.changed_date)
       if (Number.isNaN(changed.getTime())) return acc
-      if (changed < cutoff) return acc
+      if (changed < start || changed > end) return acc
       const date = format(changed, 'yyyy-MM-dd')
       acc[date] = (acc[date] || 0) + 1
       return acc
@@ -749,7 +752,7 @@ export default function InteractiveDashboard() {
         date: format(new Date(iso), 'dd/MM', { locale: ptBR }),
         closed: Number(count),
       }))
-  }, [closedFeaturesWiqlData, featuresData, closedByDayDias])
+  }, [closedFeaturesWiqlData, featuresData, closedByDayDateDe, closedByDayDateAte])
 
   const handleClosedDayClick = (isoDate: string) => {
     const items = (closedFeaturesWiqlData?.items || featuresData?.items || []) as Feature[]
@@ -806,7 +809,7 @@ export default function InteractiveDashboard() {
   }
 
   return (
-    <div className="space-y-6 px-2 pt-2 pb-6 animate-fadeIn">
+    <div className="space-y-6 px-2 pt-0 pb-6 animate-fadeIn">
       <DashboardHeader consolidatedError={consolidatedError} consolidatedLoading={consolidatedLoading} />
 
       {/* Layout: Semáforo à esquerda, Filtros e Cards à direita */}
@@ -979,29 +982,25 @@ export default function InteractiveDashboard() {
             </div>
           </div>
 
-          {/* Cards por mês - seletor unificado (abaixo de Clientes/PMOs/Encerrados) */}
+          {/* Cards por período - seletor de data (abaixo de Clientes/PMOs/Encerrados) */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Mês/Ano:</span>
-              <div className="flex gap-2">
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Período:</span>
+              <div className="flex gap-2 items-center">
+                <label className="text-xs text-gray-500 dark:text-gray-400">De</label>
+                <input
+                  type="date"
+                  value={dateRangeDe}
+                  onChange={(e) => setDateRangeDe(e.target.value)}
                   className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm"
-                >
-                  {MONTHS_PT.map((m, i) => (
-                    <option key={i} value={i + 1}>{m}</option>
-                  ))}
-                </select>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                />
+                <label className="text-xs text-gray-500 dark:text-gray-400">a</label>
+                <input
+                  type="date"
+                  value={dateRangeAte}
+                  onChange={(e) => setDateRangeAte(e.target.value)}
                   className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm"
-                >
-                  {yearOptions.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
+                />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1009,16 +1008,16 @@ export default function InteractiveDashboard() {
                 className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all border-b-4 border-blue-400/30 cursor-pointer hover:border-blue-400"
                 onClick={() =>
                   openDrillDown(
-                    `Projetos Abertos em ${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`,
+                    `Projetos Abertos de ${format(parseISO(dateRangeDe), 'dd/MM/yyyy', { locale: ptBR })} a ${format(parseISO(dateRangeAte), 'dd/MM/yyyy', { locale: ptBR })}`,
                     monthlyProjectData.projectsOpenedItems,
-                    `${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`
+                    `${dateRangeDe} a ${dateRangeAte}`
                   )
                 }
               >
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  {MONTHS_PT[selectedMonth - 1]} / {selectedYear}
+                  {format(parseISO(dateRangeDe), 'dd/MM/yyyy', { locale: ptBR })} a {format(parseISO(dateRangeAte), 'dd/MM/yyyy', { locale: ptBR })}
                 </div>
-                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Projetos Abertos no Mês</div>
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Projetos Abertos no Período</div>
                 <div className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">
                   {monthlyProjectData.projectsOpened}
                 </div>
@@ -1027,16 +1026,16 @@ export default function InteractiveDashboard() {
                 className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all border-b-4 border-gray-400/30 cursor-pointer hover:border-gray-400"
                 onClick={() =>
                   openDrillDown(
-                    `Projetos Fechados em ${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`,
+                    `Projetos Fechados de ${format(parseISO(dateRangeDe), 'dd/MM/yyyy', { locale: ptBR })} a ${format(parseISO(dateRangeAte), 'dd/MM/yyyy', { locale: ptBR })}`,
                     monthlyProjectData.projectsClosedItems,
-                    `${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`
+                    `${dateRangeDe} a ${dateRangeAte}`
                   )
                 }
               >
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  {MONTHS_PT[selectedMonth - 1]} / {selectedYear}
+                  {format(parseISO(dateRangeDe), 'dd/MM/yyyy', { locale: ptBR })} a {format(parseISO(dateRangeAte), 'dd/MM/yyyy', { locale: ptBR })}
                 </div>
-                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Projetos Fechados no Mês</div>
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Projetos Fechados no Período</div>
                 <div className="text-3xl font-bold bg-gradient-to-r from-gray-600 to-gray-700 bg-clip-text text-transparent">
                   {monthlyProjectData.projectsClosed}
                 </div>
@@ -1045,16 +1044,16 @@ export default function InteractiveDashboard() {
                 className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all border-b-4 border-teal-400/30 cursor-pointer hover:border-teal-400"
                 onClick={() =>
                   openDrillDown(
-                    `Task's Abertas em ${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`,
+                    `Task's Abertas de ${format(parseISO(dateRangeDe), 'dd/MM/yyyy', { locale: ptBR })} a ${format(parseISO(dateRangeAte), 'dd/MM/yyyy', { locale: ptBR })}`,
                     (countsByMonthData?.tasks_opened_items || []) as Feature[],
-                    `${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`
+                    `${dateRangeDe} a ${dateRangeAte}`
                   )
                 }
               >
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  {MONTHS_PT[selectedMonth - 1]} / {selectedYear}
+                  {format(parseISO(dateRangeDe), 'dd/MM/yyyy', { locale: ptBR })} a {format(parseISO(dateRangeAte), 'dd/MM/yyyy', { locale: ptBR })}
                 </div>
-                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Task&apos;s Abertas no Mês</div>
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Task&apos;s Abertas no Período</div>
                 <div className="text-3xl font-bold bg-gradient-to-r from-teal-500 to-teal-600 bg-clip-text text-transparent">
                   {countsByMonthData?.tasks_opened ?? '–'}
                 </div>
@@ -1063,16 +1062,16 @@ export default function InteractiveDashboard() {
                 className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all border-b-4 border-cyan-400/30 cursor-pointer hover:border-cyan-400"
                 onClick={() =>
                   openDrillDown(
-                    `Task's Fechadas em ${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`,
+                    `Task's Fechadas de ${format(parseISO(dateRangeDe), 'dd/MM/yyyy', { locale: ptBR })} a ${format(parseISO(dateRangeAte), 'dd/MM/yyyy', { locale: ptBR })}`,
                     (countsByMonthData?.tasks_closed_items || []) as Feature[],
-                    `${MONTHS_PT[selectedMonth - 1]} / ${selectedYear}`
+                    `${dateRangeDe} a ${dateRangeAte}`
                   )
                 }
               >
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  {MONTHS_PT[selectedMonth - 1]} / {selectedYear}
+                  {format(parseISO(dateRangeDe), 'dd/MM/yyyy', { locale: ptBR })} a {format(parseISO(dateRangeAte), 'dd/MM/yyyy', { locale: ptBR })}
                 </div>
-                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Task&apos;s Fechadas no Mês</div>
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Task&apos;s Fechadas no Período</div>
                 <div className="text-3xl font-bold bg-gradient-to-r from-cyan-500 to-cyan-600 bg-clip-text text-transparent">
                   {countsByMonthData?.tasks_closed ?? '–'}
                 </div>
@@ -1151,7 +1150,7 @@ export default function InteractiveDashboard() {
           >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">No Prazo</div>
             <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{performanceKpis.noPrazo}%</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Abertos em Dia</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Projetos Abertos em Dia</div>
           </div>
         </div>
 
@@ -1223,7 +1222,7 @@ export default function InteractiveDashboard() {
             <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
               {tasksSummaryData ? `${taskPerformanceKpis.noPrazo}%` : '–'}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Abertos em Dia</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task&apos;s Abertas em Dia</div>
           </div>
         </div>
 
@@ -1444,22 +1443,23 @@ export default function InteractiveDashboard() {
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
               <span>📈</span>
-              <span>Features Fechadas por Dia (últimos {closedByDayDias} dias)</span>
+              <span>Features Fechadas por Dia</span>
             </h2>
-            <div className="flex gap-1">
-              {[30, 60, 90, 120].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setClosedByDayDias(d)}
-                  className={`px-2 py-1 rounded text-sm font-medium transition-colors ${
-                    closedByDayDias === d
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {d}d
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600 dark:text-gray-400">De</label>
+              <input
+                type="date"
+                value={closedByDayDateDe}
+                onChange={(e) => setClosedByDayDateDe(e.target.value)}
+                className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm"
+              />
+              <label className="text-sm text-gray-600 dark:text-gray-400">a</label>
+              <input
+                type="date"
+                value={closedByDayDateAte}
+                onChange={(e) => setClosedByDayDateAte(e.target.value)}
+                className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm"
+              />
             </div>
           </div>
           <ResponsiveContainer width="100%" height={300}>
