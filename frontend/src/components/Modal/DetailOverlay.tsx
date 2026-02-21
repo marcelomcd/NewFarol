@@ -37,7 +37,7 @@ export default function DetailOverlay({ type, id, farolStatus, onClose }: Detail
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col glass-overlay overflow-hidden animate-fadeIn relative"
+      className="fixed inset-0 z-[100] glass-overlay animate-fadeIn"
       role="dialog"
       aria-modal="true"
       aria-label={`Detalhes do item ${type === 'feature' ? 'Feature' : 'Task'} ${id}`}
@@ -72,7 +72,7 @@ export default function DetailOverlay({ type, id, farolStatus, onClose }: Detail
       {/* Botão X no canto superior direito */}
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-lg"
+        className="absolute top-4 right-4 z-20 p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-lg"
         title="Fechar"
         aria-label="Fechar detalhes"
       >
@@ -81,13 +81,23 @@ export default function DetailOverlay({ type, id, farolStatus, onClose }: Detail
         </svg>
       </button>
 
-      {/* Conteúdo scrollável - min-h-0 fixa rolagem em flexbox */}
-      <div className="relative z-10 flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-2 pb-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full overscroll-contain">
-        {type === 'feature' ? (
-          <FeatureDetails idOverride={id} embedded onClose={onClose} />
-        ) : (
-          <TaskDetails idOverride={id} embedded onClose={onClose} />
-        )}
+      {/* Conteúdo scrollável - height explícito garante scroll */}
+      <div
+        className="absolute left-0 right-0 overflow-y-auto overflow-x-hidden pb-8 px-4 sm:px-6 lg:px-8 z-10"
+        style={{
+          top: '3rem',
+          bottom: 0,
+          height: 'calc(100vh - 3rem)',
+          WebkitOverflowScrolling: 'touch',
+        } as React.CSSProperties}
+      >
+        <div className="max-w-7xl mx-auto w-full pt-2">
+          {type === 'feature' ? (
+            <FeatureDetails idOverride={id} embedded onClose={onClose} />
+          ) : (
+            <TaskDetails idOverride={id} embedded onClose={onClose} />
+          )}
+        </div>
       </div>
     </div>
   )
