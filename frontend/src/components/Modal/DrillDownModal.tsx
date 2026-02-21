@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Feature } from '../../services/api'
 import FarolCircle from '../Farol/FarolCircle'
 import DetailOverlay from './DetailOverlay'
@@ -39,12 +40,12 @@ export default function DrillDownModal({
 
   if (!isOpen) return null
 
-  return (
+  const modalContent = (
     <>
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn"
-      onClick={onClose}
-    >
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn"
+        onClick={onClose}
+      >
       <div
         className="glass dark:glass-dark rounded-2xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col animate-scaleIn"
         onClick={(e) => e.stopPropagation()}
@@ -72,7 +73,7 @@ export default function DrillDownModal({
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-3">
             {items.map((item) => {
-              const workItemType = item.raw_fields_json?.['work_item_type']
+              const workItemType = item.raw_fields_json?.['work_item_type'] ?? item.work_item_type ?? item.raw_fields_json?.['System.WorkItemType']
               const webUrl = (item as any).web_url || item.raw_fields_json?.['web_url']
               const isTask = workItemType === 'Task'
               const isBug = workItemType === 'Bug'
@@ -189,18 +190,20 @@ export default function DrillDownModal({
           </button>
         </div>
       </div>
-    </div>
+      </div>
 
-    {/* Overlay full-screen de detalhes (estilo Azure DevOps) */}
-    {selectedItem && (
-      <DetailOverlay
-        type={selectedItem.type}
-        id={selectedItem.id}
-        farolStatus={selectedItem.farolStatus ?? null}
-        onClose={() => setSelectedItem(null)}
-      />
-    )}
+      {/* Overlay full-screen de detalhes (estilo Azure DevOps) */}
+      {selectedItem && (
+        <DetailOverlay
+          type={selectedItem.type}
+          id={selectedItem.id}
+          farolStatus={selectedItem.farolStatus ?? null}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
     </>
   )
+
+  return createPortal(modalContent, document.body)
 }
 
