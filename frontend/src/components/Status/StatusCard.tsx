@@ -8,6 +8,8 @@ interface StatusCardProps {
 }
 
 // Cores para cada status (baseado no OldFarol)
+const CRITICAL_STATUSES = ['Projeto Em Fase Crítica', 'Projeto em Fase Crítica']
+
 const STATUS_COLORS: Record<string, string> = {
   'Novo': '#20c997', // Verde claro
   'Em Aberto': '#10b981', // Verde
@@ -51,15 +53,18 @@ function getStatusLabel(status: string): string {
 export default function StatusCard({ status, count, onClick, color }: StatusCardProps) {
   const statusColor = color || getStatusColor(status)
   const statusLabel = getStatusLabel(status)
-  
+  const isCritical = CRITICAL_STATUSES.includes(status)
+
   return (
     <div
       onClick={onClick}
-      className="flex-1 min-w-[150px] glass dark:glass-dark rounded-lg p-6 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl border-b-4"
+      className={`flex-1 min-w-[150px] glass dark:glass-dark rounded-lg p-6 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl border-b-4 ${
+        isCritical ? 'ring-2 ring-red-400/50 dark:ring-red-500/40' : ''
+      }`}
       style={{
-        borderBottomColor: `${statusColor}30`,
-        borderBottomWidth: '4px',
-        background: `linear-gradient(135deg, ${statusColor}15 0%, rgba(255, 255, 255, 0.05) 100%)`,
+        borderBottomColor: isCritical ? statusColor : `${statusColor}30`,
+        borderBottomWidth: isCritical ? '6px' : '4px',
+        background: `linear-gradient(135deg, ${statusColor}${isCritical ? '25' : '15'} 0%, rgba(255, 255, 255, 0.05) 100%)`,
         transition: 'border-bottom-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease',
         ['--status-color' as any]: statusColor,
       }}
@@ -67,7 +72,7 @@ export default function StatusCard({ status, count, onClick, color }: StatusCard
         e.currentTarget.style.borderBottomColor = statusColor
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderBottomColor = `${statusColor}30`
+        e.currentTarget.style.borderBottomColor = isCritical ? statusColor : `${statusColor}30`
       }}
     >
       <div className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">

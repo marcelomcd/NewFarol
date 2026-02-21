@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 
 interface PMOsModalProps {
   isOpen: boolean
@@ -8,6 +8,16 @@ interface PMOsModalProps {
 }
 
 export default function PMOsModal({ isOpen, onClose, pmos, onPMOClick }: PMOsModalProps) {
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    if (isOpen) {
+      document.addEventListener('keydown', handleEsc)
+      return () => document.removeEventListener('keydown', handleEsc)
+    }
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   return (

@@ -11,8 +11,12 @@ import React, { useState } from 'react';
  * desde que a URL do frontend Service UP permaneça acessível.
  */
 const ServiceUp = () => {
-  // URL do frontend Service UP (pode ser configurada via variável de ambiente)
-  const serviceUpUrl = import.meta.env.VITE_SERVICEUP_FRONTEND_URL || 'http://localhost:5174';
+  // URL do frontend Service UP: prioriza env, senão usa porta inversa (New Farol e Service Up em portas diferentes)
+  const defaultPort =
+    typeof window !== 'undefined' && window.location.port === '5174' ? '5173' : '5174';
+  const serviceUpUrl =
+    import.meta.env.VITE_SERVICEUP_FRONTEND_URL ||
+    `http://${window?.location?.hostname || 'localhost'}:${defaultPort}`;
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -21,15 +25,7 @@ const ServiceUp = () => {
   const handleIframeLoad = () => {
     setIsLoading(false);
     setError(false);
-    // Tentar acessar o conteúdo do iframe pode falhar devido a CORS,
-    // mas isso é esperado e não é um problema
-    try {
-      // Verificação silenciosa - não fazemos nada com o resultado
-      // pois o iframe pode estar em outra origem
-    } catch (e) {
-      // CORS é esperado quando o iframe está em outra origem
-      // Não é um erro, apenas uma limitação de segurança do navegador
-    }
+    // O Painel Service UP, ao carregar, obtém os dados automaticamente (InitialDataLoader + useQuery nos slides).
   };
 
   const handleIframeError = () => {

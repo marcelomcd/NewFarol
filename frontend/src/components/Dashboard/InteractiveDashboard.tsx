@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { azdoApi, featuresApi, featuresCountApi, workItemsApi, Feature } from '../../services/api'
 import {
@@ -34,6 +34,13 @@ import {
 } from '../../utils/featureExtractors'
 import DashboardHeader from './sections/DashboardHeader'
 import DashboardFiltersSection from './sections/DashboardFiltersSection'
+import DashboardSkeleton from './DashboardSkeleton'
+import ChartWithActions from './ChartWithActions'
+import ChartGalleryOverlay from './ChartGalleryOverlay'
+import ScrollToTop from '../ScrollToTop/ScrollToTop'
+import KpiCounter from '../KpiCounter/KpiCounter'
+import { useDashboardFiltersPersistence } from '../../hooks/useDashboardFiltersPersistence'
+import { useToast } from '../Toast/Toast'
 
 // Cores para gráficos
 const COLORS = {
@@ -44,6 +51,9 @@ const COLORS = {
   purple: '#8b5cf6',
   indigo: '#6366f1',
 }
+
+// Formatar valores grandes no eixo (ex: 1500 -> 1.5k)
+const formatAxisValue = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))
 
 const FAROL_COLORS: Record<FarolStatus, string> = {
   'Sem Problema': COLORS.success,
@@ -103,6 +113,30 @@ export default function InteractiveDashboard() {
   const [closedByDayDateDe, setClosedByDayDateDe] = useState(format(subDays(new Date(), 29), 'yyyy-MM-dd'))
   const [closedByDayDateAte, setClosedByDayDateAte] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [responsaveisListExpanded, setResponsaveisListExpanded] = useState(false)
+  const [fullscreenChartIndex, setFullscreenChartIndex] = useState<number | null>(null)
+  const { showToast } = useToast()
+
+  // Persistir filtros em sessionStorage
+  useDashboardFiltersPersistence(
+    {
+      selectedFarol,
+      selectedClient,
+      selectedState,
+      selectedPMO,
+      selectedResponsavel,
+      dateRangeDe,
+      dateRangeAte,
+    },
+    {
+      setSelectedFarol: (v) => setSelectedFarol(v as FarolStatus | null),
+      setSelectedClient,
+      setSelectedState,
+      setSelectedPMO,
+      setSelectedResponsavel,
+      setDateRangeDe,
+      setDateRangeAte,
+    }
+  )
 
   const derivedMonthYear = useMemo(() => {
     const d = parseISO(dateRangeDe)
@@ -177,6 +211,7 @@ export default function InteractiveDashboard() {
     data: consolidatedAzdoData,
     isLoading: consolidatedLoading,
     error: consolidatedError,
+    dataUpdatedAt: consolidatedUpdatedAt,
   } = useQuery({
     queryKey: ['azdo', 'consolidated', 7],
     queryFn: () => azdoApi.getConsolidated({ days_near_deadline: 7, cache_seconds: 10 }), // Cache backend reduzido para 10s
@@ -784,40 +819,101 @@ export default function InteractiveDashboard() {
     )
   }
 
-  const openDrillDown = (title: string, items: Feature[], filterLabel: string) => {
+  const openDrillDown = useCallback((title: string, items: Feature[], filterLabel: string) => {
     setDrillDownModal({ isOpen: true, title, items, filterLabel })
-  }
+  }, [])
+
+  // Slots para galeria fullscreen (navegação entre gráficos)
+  const chartSlots = useMemo(
+    () => [
+      {
+        id: 'pmo-perf',
+        title: 'Performance por PMO',
+        content: (
+          <ResponsiveContainer width="100%" height={Math.min(400, Math.max(250, pmoPerformanceData.length * 36))}>
+            <BarChart data={pmoPerformanceData} layout="vertical" margin={{ left: 10, right: 20 }}>
+              <XAxis type="number" tickFormatter={formatAxisValue} />
+              <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend />
+              <Bar dataKey="closed" name="Concluídos" stackId="a" fill={COLORS.success} />
+              <Bar dataKey="onTime" name="Em dia" stackId="a" fill={COLORS.primary} />
+              <Bar dataKey="overdue" name="Atrasados" stackId="a" fill={COLORS.danger} />
+            </BarChart>
+          </ResponsiveContainer>
+        ),
+      },
+      {
+        id: 'evol-entregas',
+        title: `Evolução de Entregas (${evolucaoEntregasMeses} meses)`,
+        content: (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={closedByMonth}>
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={formatAxisValue} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="closed" fill={COLORS.primary} name="Projetos fechados" />
+            </BarChart>
+          </ResponsiveContainer>
+        ),
+      },
+      {
+        id: 'saude-farol',
+        title: 'Saúde do Farol (Performance)',
+        content: (
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie data={farolPieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={2} dataKey="value" label={({ name, percent }: { name: string; percent?: number }) => `${name}: ${percent != null ? (percent * 100).toFixed(1) : 0}%`}>
+                {farolPieData.map((entry: { name: string }, index: number) => (
+                  <Cell key={`cell-${index}`} fill={FAROL_COLORS[entry.name as FarolStatus] || '#6b7280'} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+        ),
+      },
+      {
+        id: 'evol-tasks',
+        title: `Evolução de Tasks Fechadas (${evolucaoTasksMeses} meses)`,
+        content: (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={tasksClosedByMonth}>
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={formatAxisValue} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="closed" fill="#14b8a6" name="Tasks fechadas" />
+            </BarChart>
+          </ResponsiveContainer>
+        ),
+      },
+    ],
+    [pmoPerformanceData, closedByMonth, evolucaoEntregasMeses, farolPieData, tasksClosedByMonth, evolucaoTasksMeses]
+  )
 
   if (featuresLoading && baseItems.length === 0) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-lg">Carregando...</div>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
-  // Na primeira carga, mostrar loading até os dados chegarem (não usar dados antigos do cache)
+  // Na primeira carga, mostrar skeleton até os dados chegarem
   if (consolidatedLoading && !consolidatedAzdoData) {
-    return (
-      <div className="flex justify-center items-center h-96">
-        <div className="text-center">
-          <div className="spinner mx-auto mb-4"></div>
-          <div className="text-lg text-gray-600 dark:text-gray-400">Carregando dados do Azure DevOps...</div>
-        </div>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   return (
-    <div className="space-y-6 px-2 pt-0 pb-6 animate-fadeIn">
-      <DashboardHeader consolidatedError={consolidatedError} consolidatedLoading={consolidatedLoading} />
+    <div className="space-y-6 px-2 pt-0 pb-6">
+      <DashboardHeader
+        consolidatedError={consolidatedError}
+        consolidatedLoading={consolidatedLoading}
+        dataUpdatedAt={consolidatedUpdatedAt}
+      />
 
       {/* Layout: Semáforo à esquerda, Filtros e Cards à direita */}
-      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 lg:items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 lg:items-stretch animate-fadeIn stagger-1">
         {/* Coluna esquerda: Semáforo */}
         <div className="w-fit">
           <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all flex flex-col w-fit min-w-fit h-full">
-            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white whitespace-nowrap text-center w-full">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white whitespace-nowrap text-center w-full font-heading">
               Status do Farol
             </h2>
             <div className="flex flex-col items-center justify-center gap-4 flex-1">
@@ -882,6 +978,7 @@ export default function InteractiveDashboard() {
               setSelectedState(null)
               setSelectedPMO(null)
               setSelectedResponsavel(null)
+              showToast('Filtros limpos', 'success')
             }}
           />
 
@@ -1104,52 +1201,64 @@ export default function InteractiveDashboard() {
       </div>
 
       {/* Análise de Performance */}
-      <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
-        <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2">
+      <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all animate-fadeIn stagger-2">
+        <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2 font-heading">
           <span>📊</span>
           <span>Análise de Performance</span>
         </h2>
 
         {/* Scorecard KPIs - Projetos */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 animate-fadeIn stagger-3">
           <div
-            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-blue-500 cursor-pointer hover:opacity-90 transition-opacity"
+            className={`glass dark:glass-dark p-4 rounded-lg border-l-4 border-blue-500 transition-opacity ${
+              closedProjectsItems.length > 0 ? 'cursor-pointer hover:opacity-90' : 'opacity-60 cursor-not-allowed'
+            }`}
             onClick={() => {
               if (closedProjectsItems.length > 0) openDrillDown('Projetos Encerrados', closedProjectsItems, 'Projetos Encerrado')
             }}
+            title={closedProjectsItems.length === 0 ? 'Nenhum item nesta categoria' : undefined}
           >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa de Conclusão</div>
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{performanceKpis.taxaConclusao}%</div>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400"><KpiCounter value={performanceKpis.taxaConclusao} suffix="%" decimals={1} /></div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Projetos Encerrado</div>
           </div>
           <div
-            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-amber-500 cursor-pointer hover:opacity-90 transition-opacity"
+            className={`glass dark:glass-dark p-4 rounded-lg border-l-4 border-amber-500 transition-opacity ${
+              overdueProjects.length > 0 ? 'cursor-pointer hover:opacity-90' : 'opacity-60 cursor-not-allowed'
+            }`}
             onClick={() => {
               if (overdueProjects.length > 0) openDrillDown('Projetos Atrasados', overdueProjects as Feature[], 'Projetos Atrasados')
             }}
+            title={overdueProjects.length === 0 ? 'Nenhum item nesta categoria' : undefined}
           >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa de Atraso</div>
-            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{performanceKpis.taxaAtraso}%</div>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400"><KpiCounter value={performanceKpis.taxaAtraso} suffix="%" decimals={1} /></div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Projetos Atrasados</div>
           </div>
           <div
-            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-green-500 cursor-pointer hover:opacity-90 transition-opacity"
+            className={`glass dark:glass-dark p-4 rounded-lg border-l-4 border-green-500 transition-opacity ${
+              semProblemaProjects.length > 0 ? 'cursor-pointer hover:opacity-90' : 'opacity-60 cursor-not-allowed'
+            }`}
             onClick={() => {
               if (semProblemaProjects.length > 0) openDrillDown('Projetos Sem Problema', semProblemaProjects as Feature[], 'Sem Problema')
             }}
+            title={semProblemaProjects.length === 0 ? 'Nenhum item nesta categoria' : undefined}
           >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Saúde do Farol</div>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{performanceKpis.saudeFarol}%</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400"><KpiCounter value={performanceKpis.saudeFarol} suffix="%" decimals={1} /></div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Sem Problema</div>
           </div>
           <div
-            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-emerald-500 cursor-pointer hover:opacity-90 transition-opacity"
+            className={`glass dark:glass-dark p-4 rounded-lg border-l-4 border-emerald-500 transition-opacity ${
+              onTimeProjects.length > 0 ? 'cursor-pointer hover:opacity-90' : 'opacity-60 cursor-not-allowed'
+            }`}
             onClick={() => {
               if (onTimeProjects.length > 0) openDrillDown('Projetos em Dia', onTimeProjects as Feature[], 'Abertos em Dia')
             }}
+            title={onTimeProjects.length === 0 ? 'Nenhum item nesta categoria' : undefined}
           >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">No Prazo</div>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{performanceKpis.noPrazo}%</div>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400"><KpiCounter value={performanceKpis.noPrazo} suffix="%" decimals={1} /></div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Projetos Abertos em Dia</div>
           </div>
         </div>
@@ -1157,7 +1266,9 @@ export default function InteractiveDashboard() {
         {/* KPIs de Tasks - todos em percentual */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div
-            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-cyan-500 cursor-pointer hover:opacity-90 transition-opacity"
+            className={`glass dark:glass-dark p-4 rounded-lg border-l-4 border-cyan-500 transition-opacity ${
+              (tasksClosedData?.items ?? []).length > 0 ? 'cursor-pointer hover:opacity-90' : 'opacity-60 cursor-not-allowed'
+            }`}
             onClick={() => {
               const items = (tasksClosedData?.items ?? []).map((t) => ({
                 ...t,
@@ -1165,15 +1276,20 @@ export default function InteractiveDashboard() {
               })) as Feature[]
               if (items.length > 0) openDrillDown("Task's Fechadas", items, "Task's Fechadas (Closed e Resolved)")
             }}
+            title={(tasksClosedData?.items ?? []).length === 0 ? 'Nenhum item nesta categoria' : undefined}
           >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Task&apos;s Fechadas</div>
             <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">
-              {tasksSummaryData ? `${taskPerformanceKpis.taxaConclusao}%` : '–'}
+              {tasksSummaryData ? <KpiCounter value={taskPerformanceKpis.taxaConclusao} suffix="%" decimals={1} /> : '–'}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task&apos;s Fechadas (Closed e Resolved)</div>
           </div>
           <div
-            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-red-500 cursor-pointer hover:opacity-90 transition-opacity"
+            className={`glass dark:glass-dark p-4 rounded-lg border-l-4 border-red-500 transition-opacity ${
+              (tasksOpenData?.items ?? []).filter((t) => (t as any).days_overdue != null && (t as any).days_overdue > 0).length > 0
+                ? 'cursor-pointer hover:opacity-90'
+                : 'opacity-60 cursor-not-allowed'
+            }`}
             onClick={() => {
               const items = (tasksOpenData?.items ?? [])
                 .filter((t) => (t as any).days_overdue != null && (t as any).days_overdue > 0)
@@ -1183,15 +1299,18 @@ export default function InteractiveDashboard() {
                 })) as Feature[]
               if (items.length > 0) openDrillDown("Task's Atrasadas", items, "Task's Atrasadas")
             }}
+            title={(tasksOpenData?.items ?? []).filter((t) => (t as any).days_overdue != null && (t as any).days_overdue > 0).length === 0 ? 'Nenhum item nesta categoria' : undefined}
           >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Taxa de atraso</div>
             <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {tasksSummaryData ? `${taskPerformanceKpis.taxaAtraso}%` : '–'}
+              {tasksSummaryData ? <KpiCounter value={taskPerformanceKpis.taxaAtraso} suffix="%" decimals={1} /> : '–'}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task&apos;s Atrasadas</div>
           </div>
           <div
-            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-teal-500 cursor-pointer hover:opacity-90 transition-opacity"
+            className={`glass dark:glass-dark p-4 rounded-lg border-l-4 border-teal-500 transition-opacity ${
+              (tasksOpenData?.items ?? []).length > 0 ? 'cursor-pointer hover:opacity-90' : 'opacity-60 cursor-not-allowed'
+            }`}
             onClick={() => {
               const items = (tasksOpenData?.items ?? []).map((t) => ({
                 ...t,
@@ -1199,15 +1318,20 @@ export default function InteractiveDashboard() {
               })) as Feature[]
               if (items.length > 0) openDrillDown("Task's em Aberto", items, "Task's em Aberto (New e Active)")
             }}
+            title={(tasksOpenData?.items ?? []).length === 0 ? 'Nenhum item nesta categoria' : undefined}
           >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Em Andamento</div>
             <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">
-              {tasksSummaryData ? `${taskPerformanceKpis.emAndamento}%` : '–'}
+              {tasksSummaryData ? <KpiCounter value={taskPerformanceKpis.emAndamento} suffix="%" decimals={1} /> : '–'}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task&apos;s em Aberto (New e Active)</div>
           </div>
           <div
-            className="glass dark:glass-dark p-4 rounded-lg border-l-4 border-emerald-500 cursor-pointer hover:opacity-90 transition-opacity"
+            className={`glass dark:glass-dark p-4 rounded-lg border-l-4 border-emerald-500 transition-opacity ${
+              (tasksOpenData?.items ?? []).filter((t) => (t as any).days_overdue == null || (t as any).days_overdue <= 0).length > 0
+                ? 'cursor-pointer hover:opacity-90'
+                : 'opacity-60 cursor-not-allowed'
+            }`}
             onClick={() => {
               const items = (tasksOpenData?.items ?? [])
                 .filter((t) => (t as any).days_overdue == null || (t as any).days_overdue <= 0)
@@ -1217,22 +1341,22 @@ export default function InteractiveDashboard() {
                 })) as Feature[]
               if (items.length > 0) openDrillDown("Task's em Dia", items, 'Abertos em Dia')
             }}
+            title={(tasksOpenData?.items ?? []).filter((t) => (t as any).days_overdue == null || (t as any).days_overdue <= 0).length === 0 ? 'Nenhum item nesta categoria' : undefined}
           >
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">No Prazo</div>
             <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              {tasksSummaryData ? `${taskPerformanceKpis.noPrazo}%` : '–'}
+              {tasksSummaryData ? <KpiCounter value={taskPerformanceKpis.noPrazo} suffix="%" decimals={1} /> : '–'}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Task&apos;s Abertas em Dia</div>
           </div>
         </div>
 
         {/* Performance por PMO + Evolução + Saúde Farol */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
-            <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">Performance por PMO</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fadeIn stagger-4">
+          <ChartWithActions title="Performance por PMO" onFullscreenClick={() => setFullscreenChartIndex(0)}>
             <ResponsiveContainer width="100%" height={Math.min(400, Math.max(250, pmoPerformanceData.length * 36))}>
               <BarChart data={pmoPerformanceData} layout="vertical" margin={{ left: 10, right: 20 }}>
-                <XAxis type="number" />
+                <XAxis type="number" tickFormatter={formatAxisValue} />
                 <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
@@ -1280,13 +1404,10 @@ export default function InteractiveDashboard() {
                 />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </ChartWithActions>
 
-          <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-              <h3 className="text-lg font-bold text-gray-800 dark:text-white">
-                Evolução de Entregas ({evolucaoEntregasMeses} meses)
-              </h3>
+          <ChartWithActions title={`Evolução de Entregas (${evolucaoEntregasMeses} meses)`} onFullscreenClick={() => setFullscreenChartIndex(1)}>
+            <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
               <div className="flex gap-1">
                 {[3, 6, 9, 12].map((m) => (
                   <button
@@ -1306,7 +1427,7 @@ export default function InteractiveDashboard() {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={closedByMonth}>
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis />
+                <YAxis tickFormatter={formatAxisValue} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar
                   dataKey="closed"
@@ -1326,10 +1447,9 @@ export default function InteractiveDashboard() {
                 />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </ChartWithActions>
 
-          <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
-            <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">Saúde do Farol (Performance)</h3>
+          <ChartWithActions title="Saúde do Farol (Performance)" onFullscreenClick={() => setFullscreenChartIndex(2)}>
             <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
                     <Pie
@@ -1340,7 +1460,7 @@ export default function InteractiveDashboard() {
                       outerRadius={90}
                       paddingAngle={2}
                       dataKey="value"
-                      label={({ name, percentage }) => `${name}: ${percentage}%`}
+                      label={({ name, percent }: { name: string; percent?: number }) => `${name}: ${percent != null ? (percent * 100).toFixed(1) : 0}%`}
                       onClick={(data: any) => {
                         const status = data.name as FarolStatus
                         const items = activeItems.filter((item) => normalizeFarolStatus(item.farol_status) === status)
@@ -1357,13 +1477,10 @@ export default function InteractiveDashboard() {
                     <Tooltip content={<CustomTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
-          </div>
+          </ChartWithActions>
 
-          <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-              <h3 className="text-lg font-bold text-gray-800 dark:text-white">
-                Evolução de Tasks Fechadas ({evolucaoTasksMeses} meses)
-              </h3>
+          <ChartWithActions title={`Evolução de Tasks Fechadas (${evolucaoTasksMeses} meses)`} onFullscreenClick={() => setFullscreenChartIndex(3)}>
+            <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
               <div className="flex gap-1">
                 {[3, 6, 9, 12].map((m) => (
                   <button
@@ -1383,7 +1500,7 @@ export default function InteractiveDashboard() {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={tasksClosedByMonth}>
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis />
+                <YAxis tickFormatter={formatAxisValue} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar
                   dataKey="closed"
@@ -1403,7 +1520,7 @@ export default function InteractiveDashboard() {
                 />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </ChartWithActions>
         </div>
       </div>
 
@@ -1418,7 +1535,7 @@ export default function InteractiveDashboard() {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percentage }: any) => `${name}\n${percentage}%`}
+                label={({ name, percent }: { name: string; percent?: number }) => `${name}\n${percent != null ? (percent * 100).toFixed(1) : 0}%`}
                 outerRadius={100}
                 fill="#8884d8"
                 dataKey="value"
@@ -1465,7 +1582,7 @@ export default function InteractiveDashboard() {
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={closedByDay}>
               <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} interval={0} />
-              <YAxis />
+              <YAxis tickFormatter={formatAxisValue} />
               <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#94a3b8', strokeWidth: 1 }} />
               <Line
                 type="monotone"
@@ -1492,7 +1609,7 @@ export default function InteractiveDashboard() {
           </h2>
           <ResponsiveContainer width="100%" height={Math.min(400, Math.max(300, pmoCounts.slice(0, 10).length * 30))}>
             <BarChart data={pmoCounts.slice(0, 10)} layout="vertical">
-              <XAxis type="number" />
+              <XAxis type="number" tickFormatter={formatAxisValue} />
               <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
               <Tooltip content={<CustomTooltip />} />
               <Bar
@@ -1519,7 +1636,7 @@ export default function InteractiveDashboard() {
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={responsibleCounts.slice(0, 10)}>
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} tick={{ fontSize: 12 }} />
-              <YAxis />
+              <YAxis tickFormatter={formatAxisValue} />
               <Tooltip content={<CustomTooltip />} />
               <Bar
                 dataKey="value"
@@ -1575,6 +1692,18 @@ export default function InteractiveDashboard() {
           })()}
         </div>
       </div>
+
+      {/* Galeria fullscreen com navegação entre gráficos */}
+      <ChartGalleryOverlay
+        isOpen={fullscreenChartIndex !== null}
+        currentIndex={fullscreenChartIndex ?? 0}
+        charts={chartSlots}
+        onClose={() => setFullscreenChartIndex(null)}
+        onNavigate={(i) => setFullscreenChartIndex(i)}
+      />
+
+      {/* Botão voltar ao topo */}
+      <ScrollToTop />
 
       {/* Modal de Drill-Down */}
       <DrillDownModal

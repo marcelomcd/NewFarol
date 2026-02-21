@@ -1,0 +1,169 @@
+{
+	"id": "18904480-eec9-4dd6-91b3-7a97826034d7",
+	"deletedDateTime": null,
+	"appId": "87e8d9fc-60fa-4d01-894f-f3753e11004b",
+	"applicationTemplateId": null,
+	"disabledByMicrosoftStatus": null,
+	"createdDateTime": "2025-04-19T15:00:44Z",
+	"displayName": "Farol Operacional",
+	"description": null,
+	"groupMembershipClaims": "None",
+	"identifierUris": [],
+	"isDeviceOnlyAuthSupported": null,
+	"isFallbackPublicClient": false,
+	"nativeAuthenticationApisEnabled": null,
+	"notes": null,
+	"publisherDomain": "qualiit.com.br",
+	"serviceManagementReference": null,
+	"signInAudience": "AzureADMyOrg",
+	"tags": [
+		"apiConsumer",
+		"webApp"
+	],
+	"tokenEncryptionKeyId": null,
+	"samlMetadataUrl": null,
+	"defaultRedirectUri": null,
+	"certification": null,
+	"requestSignatureVerification": null,
+	"addIns": [],
+	"api": {
+		"acceptMappedClaims": null,
+		"knownClientApplications": [],
+		"requestedAccessTokenVersion": null,
+		"oauth2PermissionScopes": [],
+		"preAuthorizedApplications": []
+	},
+	"appRoles": [],
+	"info": {
+		"logoUrl": null,
+		"marketingUrl": null,
+		"privacyStatementUrl": null,
+		"supportUrl": null,
+		"termsOfServiceUrl": null
+	},
+	"keyCredentials": [],
+	"optionalClaims": {
+		"accessToken": [],
+		"idToken": [
+			{
+				"additionalProperties": [],
+				"essential": false,
+				"name": "email",
+				"source": null
+			},
+			{
+				"additionalProperties": [],
+				"essential": false,
+				"name": "preferred_username",
+				"source": null
+			},
+			{
+				"additionalProperties": [],
+				"essential": false,
+				"name": "name",
+				"source": null
+			}
+		],
+		"saml2Token": [
+			{
+				"additionalProperties": [],
+				"essential": false,
+				"name": "email",
+				"source": null
+			}
+		]
+	},
+	"parentalControlSettings": {
+		"countriesBlockedForMinors": [],
+		"legalAgeGroupRule": "Allow"
+	},
+	"passwordCredentials": [
+		{
+			"customKeyIdentifier": null,
+			"displayName": "NewFarol2",
+			"endDateTime": "2028-02-09T03:00:00Z",
+			"hint": "-Bf",
+			"keyId": "23496da5-ad31-42c3-bc2f-a55811ba384f",
+			"secretText": null,
+			"startDateTime": "2026-02-10T00:05:56.832Z"
+		},
+		{
+			"customKeyIdentifier": null,
+			"displayName": "NewFarol",
+			"endDateTime": "2027-12-16T12:16:24.64Z",
+			"hint": "3r.",
+			"keyId": "976e60df-c40e-4cb3-9658-0eafcaadae24",
+			"secretText": null,
+			"startDateTime": "2025-12-16T12:16:24.64Z"
+		}
+	],
+	"publicClient": {
+		"redirectUris": []
+	},
+	"requiredResourceAccess": [
+		{
+			"resourceAppId": "00000003-0000-0000-c000-000000000000",
+			"resourceAccess": [
+				{
+					"id": "64a6cdd6-aab1-4aaf-94b8-3cc8405e90d0",
+					"type": "Scope"
+				},
+				{
+					"id": "37f7f235-527c-4136-accd-4a02d197296e",
+					"type": "Scope"
+				},
+				{
+					"id": "14dad69e-099b-42c9-810b-d002981feec1",
+					"type": "Scope"
+				},
+				{
+					"id": "e1fe6dd8-ba31-4d61-89e7-88639da4683d",
+					"type": "Scope"
+				}
+			]
+		}
+	],
+	"verifiedPublisher": {
+		"displayName": null,
+		"verifiedPublisherId": null,
+		"addedDateTime": null
+	},
+	"web": {
+		"homePageUrl": null,
+		"logoutUrl": null,
+		"redirectUris": [
+			"https://newfarol.qualiit.com.br/api/auth/callback",
+			"https://d2k6golik0z21l.cloudfront.net/api/auth/callback",
+			"http://localhost:8000/api/auth/callback"
+		],
+		"implicitGrantSettings": {
+			"enableAccessTokenIssuance": false,
+			"enableIdTokenIssuance": false
+		},
+		"redirectUriSettings": [
+			{
+				"uri": "https://newfarol.qualiit.com.br/api/auth/callback",
+				"index": null
+			},
+			{
+				"uri": "https://d2k6golik0z21l.cloudfront.net/api/auth/callback",
+				"index": null
+			},
+			{
+				"uri": "http://localhost:8000/api/auth/callback",
+				"index": null
+			}
+		]
+	},
+	"servicePrincipalLockConfiguration": {
+		"isEnabled": true,
+		"allProperties": true,
+		"credentialsWithUsageVerify": true,
+		"credentialsWithUsageSign": true,
+		"identifierUris": false,
+		"tokenEncryptionKeyId": true
+	},
+	"spa": {
+		"redirectUris": []
+	}
+}

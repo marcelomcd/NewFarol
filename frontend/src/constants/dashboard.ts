@@ -78,6 +78,12 @@ export const EXPECTED_COUNTS = {
   OPEN_FEATURES: 135,  // Valor esperado do WIQL
 } as const
 
+// Meses em português (para seletor de data)
+export const MONTHS_PT = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+] as const
+
 // Mensagens de erro
 export const ERROR_MESSAGES = {
   NO_DATA: 'Nenhum dado disponível',

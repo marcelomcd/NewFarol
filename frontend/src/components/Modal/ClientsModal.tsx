@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Feature } from '../../services/api'
 
 interface ClientsModalProps {
@@ -18,6 +18,16 @@ export default function ClientsModal({
   activeItems,
   onClientClick,
 }: ClientsModalProps) {
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    if (isOpen) {
+      document.addEventListener('keydown', handleEsc)
+      return () => document.removeEventListener('keydown', handleEsc)
+    }
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   // Normalizar nomes para comparação consistente (evita divergência: "QUALIIT" vs "Quali IT", caixa, acentos, etc.)

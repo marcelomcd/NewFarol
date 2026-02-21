@@ -14,6 +14,7 @@ import CompletedTasks from './pages/CompletedTasks'
 import TaskDetails from './pages/TaskDetails'
 import ServiceUp from './pages/ServiceUp'
 import ErrorBoundary from './components/ErrorBoundary'
+import PageTransition from './components/PageTransition/PageTransition'
 import { useEffect } from 'react'
 
 function AuthSuccessRedirect() {
@@ -184,7 +185,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <ErrorBoundary>
-                  <InteractiveDashboard />
+                  <PageTransition>
+                    <InteractiveDashboard />
+                  </PageTransition>
                 </ErrorBoundary>
               </ProtectedRoute>
             }
@@ -257,7 +260,9 @@ function App() {
             path="/reports"
             element={
               <AdminOnlyRoute>
-                <Reports />
+                <PageTransition>
+                  <Reports />
+                </PageTransition>
               </AdminOnlyRoute>
             }
           />

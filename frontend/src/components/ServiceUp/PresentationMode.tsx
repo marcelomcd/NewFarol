@@ -120,7 +120,7 @@ const PresentationMode = ({ slides, currentIndex, onClose, onNext, onPrevious }:
           <div className="sticky top-0 bg-white p-4 flex items-center justify-between z-10 shadow-md border-b border-gray-200 rounded-t-2xl">
             <div className="flex items-center gap-4">
               <img
-                src="/logo-qualiit.svg"
+                src="/logo-qualiit.png"
                 alt="QualiIT"
                 className="h-8 w-auto object-contain"
               />

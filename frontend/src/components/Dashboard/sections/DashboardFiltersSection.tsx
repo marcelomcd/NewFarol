@@ -41,7 +41,7 @@ export default function DashboardFiltersSection({
   clearFilters,
 }: DashboardFiltersSectionProps) {
   return (
-    <div className="glass dark:glass-dark p-5 rounded-lg grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 items-end">
+    <div className="glass dark:glass-dark p-5 rounded-lg grid grid-cols-[1fr_1fr_1fr_1fr] gap-4 items-end">
       <div>
         <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Responsável</label>
         <select
@@ -89,7 +89,16 @@ export default function DashboardFiltersSection({
           ))}
         </select>
       </div>
-      <div>
+      <div className="relative">
+        <div className="absolute top-0 right-0">
+          <button
+            onClick={clearFilters}
+            disabled={!hasFilters}
+            className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+          >
+            Limpar Filtros
+          </button>
+        </div>
         <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">PMO</label>
         <select
           value={selectedPMO || ''}
@@ -101,16 +110,6 @@ export default function DashboardFiltersSection({
             <option key={pmo} value={pmo}>{pmo}</option>
           ))}
         </select>
-      </div>
-      <div className="flex items-end">
-        {hasFilters && (
-          <button
-            onClick={clearFilters}
-            className="text-xs px-2 py-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors whitespace-nowrap"
-          >
-            Limpar Filtros
-          </button>
-        )}
       </div>
     </div>
   )

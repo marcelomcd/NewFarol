@@ -6,7 +6,7 @@
 import { useMemo } from 'react'
 import { Feature } from '../../../services/api'
 import { normalizarStatus } from '../../../utils/statusNormalization'
-import { normalizeFarolStatus, getFarolStatusSummary } from '../../../utils/farol'
+import { getFarolStatusSummary } from '../../../utils/farol'
 
 interface DashboardMetricsProps {
   filteredItems: Feature[]
@@ -142,15 +142,12 @@ export function useDashboardMetrics({
   
   // Clientes únicos
   const uniqueClients = useMemo(() => {
-    if (validClientsData?.clients) {
-      return validClientsData.clients
-    }
     const clients = new Set<string>()
     activeItems.forEach(item => {
       if (item.client) clients.add(item.client)
     })
     return Array.from(clients).sort()
-  }, [activeItems, validClientsData])
+  }, [activeItems])
   
   // PMOs únicos
   const uniquePMOs = useMemo(() => {

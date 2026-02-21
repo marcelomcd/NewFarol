@@ -9,7 +9,7 @@ const dbConfig = {
     port: process.env.DB_PORT || 3306,
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'dw_combio',
+    database: 'dw_combio', // Database fixo conforme GRANT
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0

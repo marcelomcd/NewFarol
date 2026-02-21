@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Feature } from '../../services/api'
 import FarolCircle from '../Farol/FarolCircle'
 import DetailOverlay from './DetailOverlay'
@@ -23,6 +23,19 @@ export default function DrillDownModal({
   filterLabel,
 }: DrillDownModalProps) {
   const [selectedItem, setSelectedItem] = useState<{ type: 'feature' | 'task'; id: number } | null>(null)
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (selectedItem) setSelectedItem(null)
+        else onClose()
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('keydown', handleEsc)
+      return () => document.removeEventListener('keydown', handleEsc)
+    }
+  }, [isOpen, selectedItem, onClose])
 
   if (!isOpen) return null
 
