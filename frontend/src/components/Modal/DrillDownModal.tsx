@@ -125,9 +125,19 @@ export default function DrillDownModal({
                         </span>
                       )}
                       {item.changed_date && (
-                        <span className="flex items-center gap-1">
-                          <span>📅</span>
+                        <span className="flex items-center gap-1" title="Data de Atualização">
+                          <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
                           <span>{format(new Date(item.changed_date), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                        </span>
+                      )}
+                      {((item as { target_date?: string }).target_date ?? item.raw_fields_json?.['Microsoft.VSTS.Scheduling.TargetDate']) && (
+                        <span className="flex items-center gap-1" title="Data Prevista para Conclusão">
+                          <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>{format(new Date((item as { target_date?: string }).target_date ?? item.raw_fields_json?.['Microsoft.VSTS.Scheduling.TargetDate']), 'dd/MM/yyyy', { locale: ptBR })}</span>
                         </span>
                       )}
                     </div>
