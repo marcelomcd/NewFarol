@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Feature } from '../../services/api'
 import FarolCircle from '../Farol/FarolCircle'
 import DetailOverlay from './DetailOverlay'
@@ -15,42 +15,6 @@ interface DrillDownModalProps {
   filterLabel: string
 }
 
-/** Retorna o pior status de farol entre os itens (Features com farol_status). */
-function getPredominantFarol(items: Feature[]): FarolStatus | null {
-  let hasCritico = false
-  let hasProblema = false
-  let hasSemProblema = false
-  for (const item of items) {
-    const s = normalizeFarolStatus(item.farol_status)
-    if (s === 'Problema Crítico') hasCritico = true
-    else if (s === 'Com Problema') hasProblema = true
-    else if (s === 'Sem Problema') hasSemProblema = true
-  }
-  if (hasCritico) return 'Problema Crítico'
-  if (hasProblema) return 'Com Problema'
-  if (hasSemProblema) return 'Sem Problema'
-  return null
-}
-
-const FAROL_MODAL_STYLES: Record<FarolStatus, { border: string; bgLight: string; bgDark: string }> = {
-  'Problema Crítico': {
-    border: 'rgba(220, 53, 69, 0.9)',
-    bgLight: 'rgba(220, 53, 69, 0.06)',
-    bgDark: 'rgba(220, 53, 69, 0.12)',
-  },
-  'Com Problema': {
-    border: 'rgba(245, 158, 11, 0.9)',
-    bgLight: 'rgba(245, 158, 11, 0.06)',
-    bgDark: 'rgba(245, 158, 11, 0.1)',
-  },
-  'Sem Problema': {
-    border: 'rgba(34, 197, 94, 0.9)',
-    bgLight: 'rgba(34, 197, 94, 0.05)',
-    bgDark: 'rgba(34, 197, 94, 0.08)',
-  },
-  Indefinido: { border: 'transparent', bgLight: 'transparent', bgDark: 'transparent' },
-}
-
 export default function DrillDownModal({
   isOpen,
   onClose,
@@ -58,9 +22,7 @@ export default function DrillDownModal({
   items,
   filterLabel,
 }: DrillDownModalProps) {
-  const [selectedItem, setSelectedItem] = useState<{ type: 'feature' | 'task'; id: number } | null>(null)
-  const predominantFarol = useMemo(() => getPredominantFarol(items), [items])
-  const farolStyle = predominantFarol && predominantFarol !== 'Indefinido' ? FAROL_MODAL_STYLES[predominantFarol] : null
+  const [selectedItem, setSelectedItem] = useState<{ type: 'feature' | 'task'; id: number; farolStatus?: FarolStatus | null } | null>(null)
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -84,37 +46,11 @@ export default function DrillDownModal({
       onClick={onClose}
     >
       <div
-        className="glass dark:glass-dark rounded-2xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col animate-scaleIn relative overflow-hidden"
+        className="glass dark:glass-dark rounded-2xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col animate-scaleIn"
         onClick={(e) => e.stopPropagation()}
-        style={
-          farolStyle
-            ? {
-                borderLeft: `4px solid ${farolStyle.border}`,
-                boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.25), inset 0 0 0 1px rgba(255, 255, 255, 0.05)`,
-              }
-            : undefined
-        }
       >
-        {farolStyle && (
-          <>
-            <div
-              className="absolute inset-0 pointer-events-none dark:hidden"
-              style={{
-                background: `linear-gradient(135deg, ${farolStyle.bgLight} 0%, transparent 50%)`,
-              }}
-              aria-hidden
-            />
-            <div
-              className="absolute inset-0 pointer-events-none hidden dark:block"
-              style={{
-                background: `linear-gradient(135deg, ${farolStyle.bgDark} 0%, transparent 50%)`,
-              }}
-              aria-hidden
-            />
-          </>
-        )}
         {/* Header */}
-        <div className="relative z-10 flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div>
             <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{title}</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -133,7 +69,7 @@ export default function DrillDownModal({
         </div>
 
         {/* Content */}
-        <div className="relative z-10 flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-3">
             {items.map((item) => {
               const workItemType = item.raw_fields_json?.['work_item_type']
@@ -143,7 +79,7 @@ export default function DrillDownModal({
               
               const handleClick = () => {
                 if (isTask) {
-                  setSelectedItem({ type: 'task', id: item.id })
+                  setSelectedItem({ type: 'task', id: item.id, farolStatus: null })
                 } else if (isBug) {
                   if (webUrl) {
                     window.open(webUrl, '_blank')
@@ -151,7 +87,7 @@ export default function DrillDownModal({
                     window.open(`https://dev.azure.com/qualiit/Quali%20IT%20-%20Inovação%20e%20Tecnologia/_workitems/edit/${item.id}`, '_blank')
                   }
                 } else {
-                  setSelectedItem({ type: 'feature', id: item.id })
+                  setSelectedItem({ type: 'feature', id: item.id, farolStatus: normalizeFarolStatus(item.farol_status) })
                 }
               }
               
@@ -241,7 +177,7 @@ export default function DrillDownModal({
         </div>
 
         {/* Footer */}
-        <div className="relative z-10 flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Clique em um item para ver detalhes
           </div>
@@ -260,6 +196,7 @@ export default function DrillDownModal({
       <DetailOverlay
         type={selectedItem.type}
         id={selectedItem.id}
+        farolStatus={selectedItem.farolStatus ?? null}
         onClose={() => setSelectedItem(null)}
       />
     )}

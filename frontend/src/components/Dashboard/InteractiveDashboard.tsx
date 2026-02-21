@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { azdoApi, featuresApi, featuresCountApi, workItemsApi, Feature } from '../../services/api'
 import {
@@ -41,6 +41,7 @@ import ScrollToTop from '../ScrollToTop/ScrollToTop'
 import KpiCounter from '../KpiCounter/KpiCounter'
 import { useDashboardFiltersPersistence } from '../../hooks/useDashboardFiltersPersistence'
 import { useToast } from '../Toast/Toast'
+import { useDashboardData } from '../../contexts/DashboardDataContext'
 
 // Cores para gráficos
 const COLORS = {
@@ -115,6 +116,20 @@ export default function InteractiveDashboard() {
   const [responsaveisListExpanded, setResponsaveisListExpanded] = useState(false)
   const [fullscreenChartIndex, setFullscreenChartIndex] = useState<number | null>(null)
   const { showToast } = useToast()
+  const { setDataUpdatedAt, searchQuery, setSearchQuery } = useDashboardData()
+
+  // Sincronizar searchQuery com URL ao montar
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const q = params.get('q')
+    if (q) setSearchQuery(q)
+  }, [setSearchQuery])
+
+  // Atualizar timestamp para navbar
+  useEffect(() => {
+    if (consolidatedUpdatedAt) setDataUpdatedAt(consolidatedUpdatedAt)
+    return () => setDataUpdatedAt(null)
+  }, [consolidatedUpdatedAt, setDataUpdatedAt])
 
   // Persistir filtros em sessionStorage
   useDashboardFiltersPersistence(
@@ -259,7 +274,7 @@ export default function InteractiveDashboard() {
     return combinedItems
   }, [featuresData, openFeaturesWiqlData, closedFeaturesWiqlData])
 
-  // Filtrar por seleções (helpers em utils/featureExtractors)
+  // Filtrar por seleções e busca (helpers em utils/featureExtractors)
   const filteredItems = useMemo(() => {
     let items = baseItems
 
@@ -279,8 +294,26 @@ export default function InteractiveDashboard() {
     if (selectedResponsavel) {
       items = items.filter((item) => extractResponsavelCliente(item) === selectedResponsavel)
     }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      items = items.filter((item) => {
+        const searchable = [
+          item.title,
+          item.client,
+          extractPMO(item),
+          extractResponsavelCliente(item),
+          String(item.id),
+          (item as any).assigned_to,
+          normalizarStatus(item.state || ''),
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        return searchable.includes(q) || searchable.split(/\s+/).some((w) => w.startsWith(q))
+      })
+    }
     return items
-  }, [baseItems, selectedFarol, selectedClient, selectedState, selectedPMO, selectedResponsavel])
+  }, [baseItems, selectedFarol, selectedClient, selectedState, selectedPMO, selectedResponsavel, searchQuery])
 
   // Itens ativos (exclui apenas Encerrado/Closed)
   const activeItems = useMemo(() => {
@@ -290,7 +323,7 @@ export default function InteractiveDashboard() {
     })
   }, [filteredItems])
 
-  const hasFilters = !!(selectedFarol || selectedClient || selectedState || selectedPMO || selectedResponsavel)
+  const hasFilters = !!(selectedFarol || selectedClient || selectedState || selectedPMO || selectedResponsavel || searchQuery.trim())
 
   // Cards principais
   // Total de Projetos = Closed (316) + Em Aberto (147) = 463
@@ -983,7 +1016,6 @@ export default function InteractiveDashboard() {
       <DashboardHeader
         consolidatedError={consolidatedError}
         consolidatedLoading={consolidatedLoading}
-        dataUpdatedAt={consolidatedUpdatedAt}
       />
 
       {/* Layout: Semáforo à esquerda, Filtros e Cards à direita */}
