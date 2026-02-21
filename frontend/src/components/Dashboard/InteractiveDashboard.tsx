@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { azdoApi, featuresApi, featuresCountApi, workItemsApi, Feature } from '../../services/api'
@@ -22,6 +23,7 @@ import TrafficLight from '../Farol/TrafficLight'
 import FarolTooltip from '../Farol/FarolTooltip'
 import StatusCardsGrid from '../Status/StatusCardsGrid'
 import DrillDownModal from '../Modal/DrillDownModal'
+import DetailOverlay from '../Modal/DetailOverlay'
 import ClientsModal from '../Modal/ClientsModal'
 import PMOsModal from '../Modal/PMOsModal'
 import CustomTooltip from './CustomTooltip'
@@ -107,6 +109,11 @@ export default function InteractiveDashboard() {
     items: [],
     filterLabel: '',
   })
+  const [drillDownSelectedItem, setDrillDownSelectedItem] = useState<{
+    type: 'feature' | 'task'
+    id: number
+    farolStatus?: FarolStatus | null
+  } | null>(null)
 
   const [clientsModal, setClientsModal] = useState<{ isOpen: boolean }>({ isOpen: false })
   const [pmosModal, setPMOsModal] = useState<{ isOpen: boolean }>({ isOpen: false })
@@ -126,6 +133,16 @@ export default function InteractiveDashboard() {
     const q = params.get('q')
     if (q) setSearchQuery(q)
   }, [setSearchQuery])
+
+  // Esc fecha o overlay de detalhes quando aberto
+  useEffect(() => {
+    if (!drillDownSelectedItem) return
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrillDownSelectedItem(null)
+    }
+    document.addEventListener('keydown', handleEsc)
+    return () => document.removeEventListener('keydown', handleEsc)
+  }, [drillDownSelectedItem])
 
   // Persistir filtros em sessionStorage
   useDashboardFiltersPersistence(
@@ -1824,11 +1841,29 @@ export default function InteractiveDashboard() {
       {/* Modal de Drill-Down */}
       <DrillDownModal
         isOpen={drillDownModal.isOpen}
-        onClose={() => setDrillDownModal({ ...drillDownModal, isOpen: false })}
+        onClose={() => {
+          setDrillDownModal((prev) => ({ ...prev, isOpen: false }))
+          setDrillDownSelectedItem(null)
+        }}
         title={drillDownModal.title}
         items={drillDownModal.items}
         filterLabel={drillDownModal.filterLabel}
+        selectedItem={drillDownSelectedItem}
+        onItemSelect={setDrillDownSelectedItem}
+        onCloseOverlay={() => setDrillDownSelectedItem(null)}
       />
+
+      {/* Overlay de detalhes (portal em document.body para garantir visibilidade) */}
+      {drillDownSelectedItem &&
+        createPortal(
+          <DetailOverlay
+            type={drillDownSelectedItem.type}
+            id={drillDownSelectedItem.id}
+            farolStatus={drillDownSelectedItem.farolStatus ?? null}
+            onClose={() => setDrillDownSelectedItem(null)}
+          />,
+          document.body
+        )}
 
       {/* Modal de Clientes */}
       <ClientsModal

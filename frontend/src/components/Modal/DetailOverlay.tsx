@@ -37,7 +37,7 @@ export default function DetailOverlay({ type, id, farolStatus, onClose }: Detail
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col bg-white dark:bg-slate-900 overflow-hidden animate-fadeIn relative"
+      className="fixed inset-0 z-[100] flex flex-col bg-white dark:bg-slate-900 overflow-hidden animate-fadeIn relative"
       role="dialog"
       aria-modal="true"
       aria-label={`Detalhes do item ${type === 'feature' ? 'Feature' : 'Task'} ${id}`}

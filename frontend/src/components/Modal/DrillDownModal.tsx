@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { Feature } from '../../services/api'
 import FarolCircle from '../Farol/FarolCircle'
-import DetailOverlay from './DetailOverlay'
 import Tooltip from '../Tooltip/Tooltip'
 import { normalizeFarolStatus, FarolStatus } from '../../utils/farol'
 import { format } from 'date-fns'
@@ -13,6 +12,9 @@ interface DrillDownModalProps {
   title: string
   items: Feature[]
   filterLabel: string
+  selectedItem?: { type: 'feature' | 'task'; id: number; farolStatus?: FarolStatus | null } | null
+  onItemSelect: (item: { type: 'feature' | 'task'; id: number; farolStatus?: FarolStatus | null }) => void
+  onCloseOverlay: () => void
 }
 
 export default function DrillDownModal({
@@ -21,13 +23,14 @@ export default function DrillDownModal({
   title,
   items,
   filterLabel,
+  selectedItem = null,
+  onItemSelect,
+  onCloseOverlay,
 }: DrillDownModalProps) {
-  const [selectedItem, setSelectedItem] = useState<{ type: 'feature' | 'task'; id: number; farolStatus?: FarolStatus | null } | null>(null)
-
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (selectedItem) setSelectedItem(null)
+        if (selectedItem) onCloseOverlay()
         else onClose()
       }
     }
@@ -35,7 +38,7 @@ export default function DrillDownModal({
       document.addEventListener('keydown', handleEsc)
       return () => document.removeEventListener('keydown', handleEsc)
     }
-  }, [isOpen, selectedItem, onClose])
+  }, [isOpen, selectedItem, onClose, onCloseOverlay])
 
   if (!isOpen) return null
 
@@ -79,7 +82,7 @@ export default function DrillDownModal({
 
                 const handleClick = () => {
                   if (isTask) {
-                    setSelectedItem({ type: 'task', id: item.id, farolStatus: null })
+                    onItemSelect({ type: 'task', id: item.id, farolStatus: null })
                   } else if (isBug) {
                     if (webUrl) {
                       window.open(webUrl, '_blank')
@@ -87,7 +90,7 @@ export default function DrillDownModal({
                       window.open(`https://dev.azure.com/qualiit/Quali%20IT%20-%20Inovação%20e%20Tecnologia/_workitems/edit/${item.id}`, '_blank')
                     }
                   } else {
-                    setSelectedItem({ type: 'feature', id: item.id, farolStatus: normalizeFarolStatus(item.farol_status) })
+                    onItemSelect({ type: 'feature', id: item.id, farolStatus: normalizeFarolStatus(item.farol_status) })
                   }
                 }
 
@@ -190,16 +193,6 @@ export default function DrillDownModal({
           </div>
         </div>
       </div>
-
-      {/* Overlay full-screen de detalhes (estilo Azure DevOps) */}
-      {selectedItem && (
-        <DetailOverlay
-          type={selectedItem.type}
-          id={selectedItem.id}
-          farolStatus={selectedItem.farolStatus ?? null}
-          onClose={() => setSelectedItem(null)}
-        />
-      )}
     </>
   )
 }
