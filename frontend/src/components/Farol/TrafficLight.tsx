@@ -52,9 +52,9 @@ export default function TrafficLight({ summary, onStatusClick }: TrafficLightPro
       {/* Semáforo */}
       <div className="relative flex items-center justify-center">
         {/* Estrutura do semáforo */}
-        <div className="bg-gray-800 dark:bg-gray-700 rounded-xl p-4 shadow-xl border-2 border-gray-900 dark:border-gray-800">
+        <div className="bg-gray-800 dark:bg-gray-700 rounded-xl p-5 shadow-xl border-2 border-gray-900 dark:border-gray-800">
           {/* Círculos do semáforo (vertical: vermelho no topo, amarelo no meio, verde embaixo) */}
-          <div className="flex flex-col gap-3 items-center">
+          <div className="flex flex-col gap-4 items-center">
             {STATUS_ORDER.map((status) => {
               const data = summary[status]
               const isActive = data && data.count > 0
@@ -79,12 +79,12 @@ export default function TrafficLight({ summary, onStatusClick }: TrafficLightPro
                       }
                     }}
                     className={`
-                      farol-lamp relative w-18 h-18 rounded-full border-2
+                      farol-lamp relative rounded-full border-2
                       ${isActive ? 'cursor-pointer' : 'cursor-default'}
                     `}
                     style={{
-                      width: '72px',
-                      height: '72px',
+                      width: '88px',
+                      height: '88px',
                       // CSS var para o glow animado (ver index.css)
                       ['--lamp-color' as any]: STATUS_COLORS[status],
                       borderColor: STATUS_COLORS[status],
@@ -101,7 +101,7 @@ export default function TrafficLight({ summary, onStatusClick }: TrafficLightPro
                   {/* Contador dentro do círculo */}
                   {isActive && (
                     <div className="absolute inset-0 flex items-center justify-center z-10">
-                      <span className="text-white font-bold text-base drop-shadow-xl">
+                      <span className="text-white font-bold text-lg drop-shadow-xl">
                         {data.count}
                       </span>
                     </div>
