@@ -817,7 +817,7 @@ export default function InteractiveDashboard() {
         {/* Coluna esquerda: Semáforo */}
         <div className="w-fit">
           <div className="glass dark:glass-dark p-6 rounded-lg hover-lift transition-all flex flex-col w-fit min-w-fit h-full">
-            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white whitespace-nowrap">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white whitespace-nowrap text-center w-full">
               Status do Farol
             </h2>
             <div className="flex flex-col items-center justify-center gap-4 flex-1">
